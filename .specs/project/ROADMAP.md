@@ -54,11 +54,13 @@
 - Detecção de idioma e fallback
 - Tratamento de vídeos sem legenda
 
-**F1.4 — Sumarização cognitiva Feynman** - PLANNED
+**F1.4 — Resumo Feynman (Gemini CLI) + persistência (escrita)** - 📝 SPEC (2026-06-01)
 
-- Prompt estruturado: Ideia Central, Pilares (Core Takeaways), Aplicação Prática
-- Output em JSON validado antes de persistir
-- Postura agnóstica de domínio (mesma qualidade para nutrição vs engenharia)
+- Prompt estruturado: Ideia Central, Pilares (Core Takeaways), Aplicação Prática — JSON validado
+- **Motor = Gemini CLI** (shell-out headless), não o modelo do agente
+- Funde com slice de escrita da F1.5: tool `archive_link(url)` (captura→resume→salva) + tabela mínima `knowledge_node`
+- Recuperação por tópico ("me envia o link de tal assunto") = feature seguinte (leitura)
+- Spec: `.specs/features/F1.4-resumo-e-salvar/spec.md`
 
 **F1.5 — Tool `save_knowledge_node` + schema Postgres** - PLANNED
 

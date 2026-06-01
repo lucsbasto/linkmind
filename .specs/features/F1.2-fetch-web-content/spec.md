@@ -1,7 +1,7 @@
 # F1.2 — Tool `fetch_web_content` (scraper universal)
 
 **Milestone:** M1 — MVP Núcleo (Captura + Pesquisa)
-**Status:** 🚧 IN PROGRESS — P0+P1+P2+P4 ✅ (2026-06-01); falta só **P3 / validação E2E pelo WhatsApp**.
+**Status:** ✅ DONE (2026-06-01) — P0–P4 completos; **E2E pelo WhatsApp validado** (URL real → `[C] mcp__web__fetch_web_content` no `genie agent log` → resumo curto).
 **Depende de:** F0.2 (tool harness — `.mcp.json` + `settings.local.json`, doc em `tools/README.md`) ✅
 **Habilita:** F1.4 (Feynman consome o texto extraído), F1.1 (rota LINK_PARA_ARQUIVAR aciona esta tool).
 
@@ -88,7 +88,7 @@ depois. O agente, ao responder no WhatsApp, resume — não despeja o `text` int
 - **P0 — Spike DOM parser:** ✅ **CONCLUÍDO.** `linkedom` escolhido: mesma extração do `jsdom` (mesmo título/texto/chars em 2 artigos reais) porém ~6-7x mais rápido sob Bun. `jsdom` removido das deps.
 - **P1 — Tool core:** ✅ **CONCLUÍDO.** `tools/fetch-web-content/server.ts` expõe `fetch_web_content(url)` (fetch + UA + timeout 10s + `MAX_BYTES` 5MB + Readability/linkedom + `MAX_CHARS` 20k + retorno JSON). Validado standalone: blog real → `ok:true`, título, excerpt, 63k chars, `truncated:true`.
 - **P2 — Tratamento de erros:** ✅ **CONCLUÍDO.** Validado standalone: URL inválida → `invalid_url`; 404 → `http_error:404` (check `res.ok` evita extrair lixo da página de erro); PDF → `unsupported_content_type:application/pdf`. Demais categorias implementadas (`timeout`, `too_large`, `no_content`, `fetch_failed`, `parse_failed`).
-- **P3 — Registro + E2E WhatsApp:** 🚧 **registro ✅** (`.mcp.json` server `web` + `permissions.allow: mcp__web__fetch_web_content`); **falta só a validação E2E** — mandar uma URL real no WhatsApp e conferir `[C] mcp__web__fetch_web_content` no `genie agent log`.
+- **P3 — Registro + E2E WhatsApp:** ✅ **CONCLUÍDO.** Registro (`.mcp.json` server `web` + `permissions.allow: mcp__web__fetch_web_content`) + **E2E validado** (2026-06-01): URL real no WhatsApp → `[C] mcp__web__fetch_web_content` no `genie agent log` → resposta curta resumindo.
 - **P4 — README da tool:** ✅ **CONCLUÍDO.** `tools/fetch-web-content/README.md` (stack, interface, limites, erros, como testar/registrar).
 
 ## Validação
