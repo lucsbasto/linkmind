@@ -1,0 +1,23 @@
+node_modules/
+.env
+.env.local
+.env.*.local
+
+dist/
+build/
+.bun/
+.turbo/
+
+.DS_Store
+Thumbs.db
+
+.specs/quick/
+
+# Tooling / IDE skill artifacts
+.agents/
+.claude/
+.cursor/
+.windsurf/
+
+# Temporary spikes
+.tmp-spike/
