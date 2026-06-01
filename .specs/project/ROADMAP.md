@@ -1,7 +1,7 @@
 # Roadmap
 
 **Current Milestone:** M1 — MVP Núcleo (Captura + Pesquisa)
-**Status:** In Progress — M0 ✅ concluído (F0.1 + F0.2). Primeira feature do M1 em spec: **F1.2 fetch_web_content**.
+**Status:** In Progress — M0 ✅ concluído (F0.1 + F0.2). M1: **F1.2 fetch_web_content ✅ DONE (E2E validado 2026-06-01)**. Próxima feature a definir.
 
 ---
 
@@ -42,11 +42,11 @@
 - Roteamento da mensagem para o pipeline correto
 - Critério: precisão ≥95% em conjunto de 50 mensagens-fixture
 
-**F1.2 — Tool `fetch_web_content` (scraper universal)** - 🚧 IN PROGRESS (spec 2026-06-01)
+**F1.2 — Tool `fetch_web_content` (scraper universal)** - ✅ DONE (2026-06-01)
 
-- Extração de conteúdo central de páginas via Readability + jsdom
-- Remoção de ads, menus, navegação
-- Limites de tamanho + timeout
+- Extração de conteúdo central de páginas via `linkedom` (parser escolhido no P0; Readability/jsdom não usados)
+- Remoção de ads, menus, navegação; tratamento de erros (404/PDF/URL inválida) com `ok:false`
+- Registrada como server `web` no `.mcp.json` + auto-aprovada; E2E pelo WhatsApp validado
 
 **F1.3 — Tool `get_youtube_transcript`** - PLANNED
 
