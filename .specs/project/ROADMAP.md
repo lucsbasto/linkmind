@@ -1,7 +1,7 @@
 # Roadmap
 
 **Current Milestone:** M1 — MVP Núcleo (Captura + Pesquisa)
-**Status:** Planning
+**Status:** In Progress — M0 ✅ concluído (F0.1 + F0.2). Primeira feature do M1 em spec: **F1.2 fetch_web_content**.
 
 ---
 
@@ -12,20 +12,20 @@
 
 ### Features
 
-**F0.1 — Setup Omni + Genie + pgserve local (com spike de descoberta)** - PLANNED
+**F0.1 — Setup Omni + Genie + pgserve local (com spike de descoberta)** - ✅ DONE (2026-06-01)
 
 - Spike: clonar e ler código fonte de Omni/Genie para confirmar envelope NATS, subject de outbound e mecânica de registro de MCP/tools customizadas em TS/Bun
 - Instalação documentada via scripts oficiais (`install.sh` Omni + `get.automagik.dev/genie`) + PM2 + pgserve
 - Pareamento do WhatsApp via Baileys (QR code no terminal)
 - Validação: mensagem texto enviada no WhatsApp aparece em log do Genie (consumer NATS) e resposta sintética volta ao usuário via Omni
 
-**F0.2 — Esqueleto do agente (Claude Agent SDK) + tool harness** - PLANNED
+**F0.2 — Esqueleto do agente + tool harness** - ✅ DONE (2026-06-01)
 
 - Wiring `omni connect <instance> <agent>` para que mensagens cheguem ao agente
-- Execução do agente via `@anthropic-ai/claude-agent-sdk` dentro do Genie
-- Tool harness em TS/Bun com 1 tool dummy registrada (mecânica conforme spike F0.1)
+- Execução do agente via **`claude` CLI nativo (sonnet) spawnado pelo bridge** (correção do spike: NÃO via `@anthropic-ai/claude-agent-sdk` — ver `.specs/features/F0.2-agente-real-tools/discovery.md`)
+- Tool harness em TS/Bun com 1 tool dummy (`mcp__hello__ping`) registrada via `.mcp.json` + `.claude/settings.local.json` (NÃO via `sdk.*` — o bridge ignora). Doc em `tools/README.md`
 - System prompt inicial (sem hardening ainda)
-- Validação: agente responde "ack" e chama tool dummy retornando valor visível no WhatsApp
+- Validação: agente responde e chama tool dummy retornando valor visível no WhatsApp ✅
 
 ---
 
@@ -42,7 +42,7 @@
 - Roteamento da mensagem para o pipeline correto
 - Critério: precisão ≥95% em conjunto de 50 mensagens-fixture
 
-**F1.2 — Tool `fetch_web_content` (scraper universal)** - PLANNED
+**F1.2 — Tool `fetch_web_content` (scraper universal)** - 🚧 IN PROGRESS (spec 2026-06-01)
 
 - Extração de conteúdo central de páginas via Readability + jsdom
 - Remoção de ads, menus, navegação

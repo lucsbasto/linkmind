@@ -3,6 +3,10 @@
     "hello": {
       "command": "bun",
       "args": ["run", "/home/lucsb/linkmind/tools/hello-mcp/server.ts"]
+    },
+    "web": {
+      "command": "bun",
+      "args": ["run", "/home/lucsb/linkmind/tools/fetch-web-content/server.ts"]
     }
   }
 }
