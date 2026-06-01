@@ -24,3 +24,11 @@ Thumbs.db
 
 # tmux logs (genie/tmux stray output)
 tmux-*.log
+
+# Genie workspace runtime (track config + agent defs, ignore runtime)
+.genie/worktrees/
+.genie/state/
+.genie/mailbox/
+.genie/chat/
+.genie/sessions.json
+.genie/*.log

@@ -1,0 +1,10 @@
+{
+  "name": "linkmind",
+  "agents": {
+    "defaults": {}
+  },
+  "tmux": {
+    "socket": "genie"
+  },
+  "sdk": {}
+}
