@@ -5,10 +5,11 @@
 ## Next Step
 
 **Feature:** F0.1 — Setup Omni + Genie + pgserve com agente stub
-**Phase:** Execute → story P1 "Stack instalada e supervisionada"
-**Action:** Instalar WSL2 + Ubuntu no Windows 11. Depois rodar os scripts oficiais de Omni (`install.sh`), Genie (`get.automagik.dev/genie`) e `pgserve@^2`, registrar com PM2.
-**Blocked by:** Nada para esta primeira sub-tarefa. (Anthropic API key vira bloqueio só quando avançar para a story "Agente stub respondendo".)
-**Definition of done:** `pm2 ls` em WSL mostra `omni`, `genie`, `pgserve` no status `online`; `genie doctor` aponta pgserve e NATS acessíveis.
+**Phase:** Execute → story P1 "Stack instalada e supervisionada" **CONCLUÍDA (substância)** → próxima: story P1 "WhatsApp pareado" + "Agente stub respondendo"
+**Action (próximo passo atômico):** (1) **Obter Anthropic API key** em console.anthropic.com e configurar no ambiente (`ANTHROPIC_API_KEY`) — é o blocker do agente. (2) Subir o **Omni Bridge** sob pm2: `genie serve` (esse é o processo "genie" que faltava no pm2). (3) Parear WhatsApp: `omni instances create <name> --channel whatsapp-baileys` + `omni instances qr <id> --watch` (QR no terminal — passo interativo do usuário). (4) Registrar agente stub: `genie agent register linkmind-agent --dir <path>` com system prompt mínimo ("ping"→"pong", senão "ack") + `omni connect <instance> linkmind-agent`. Tudo rodando em WSL2 Ubuntu 26.04, usuário `lucsb` (sudo NOPASSWD), via `wsl -d Ubuntu -u lucsb`.
+**Feito em 2026-06-01:** WSL2 + Ubuntu 26.04 instalado; toolchain (Node 22.22.2, Bun 1.3.14, PM2 7.0.1, git 2.53.0, tmux 3.6, jq 1.8.1); Omni v2.260410.1 (`omni install --non-interactive` → omni-api:8882 + omni-nats online; API key local `omni_sk_b86cf81c8de08b9c836579b9ce973c82` em ~/.omni/config.json); Genie v4.260522.20 (cosign verify OK, `genie setup --quick`); pgserve/autopg v2.6.10 (`pgserve install` → autopg-server:5432 + autopg-ui:8433; admin pwd hash em ~/.autopg/admin.json). `pm2 save` feito. `genie doctor`: pgserve + NATS backbone OK.
+**Blocked by:** **Anthropic API key não obtida** — bloqueia validar o agente stub (ping/pong) e o critério "Anthropic API key configurada" do `genie doctor`. Resolver em console.anthropic.com. (Auto-start no boot via `pm2 startup` segue adiado por decisão — não é requisito MVP.)
+**Definition of done:** `pm2 ls` mostra `omni-api`, `omni-nats`, `autopg-server` (pgserve) e o bridge `genie` online; `genie doctor` aponta pgserve + NATS acessíveis e Anthropic API key configurada. **Status:** omni/nats/pgserve ✅ online; bridge `genie` + Anthropic key ⏳ pendentes.
 
 > Regra: ao terminar qualquer ação significativa, atualize esta seção com a próxima sub-tarefa atômica antes de fechar a sessão. Nunca deixar vazia.
 
