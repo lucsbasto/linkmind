@@ -1,5 +1,6 @@
-// Smoke-test MCP server (stdio) para validar o registro de tools customizadas
-// no agente LinkMind via `genie dir edit --sdk-mcp-server`.
+// Tool dummy canônica do harness (MCP server stdio). Exemplo de referência para
+// as tools reais de M1. Registro no agente = `.mcp.json` + `.claude/settings.local.json`
+// (NÃO via sdk.* do agent.yaml — o bridge ignora). Ver ../README.md.
 // Expõe uma única tool trivial: `ping` → "pong 🏓 (<echo>)".
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";

@@ -1,7 +1,7 @@
 # F0.2 — Esqueleto do agente (Claude Agent SDK) + tool harness
 
 **Milestone:** M0 — Fundação
-**Status:** IN PROGRESS (spike + smoke-test concluídos 2026-06-01)
+**Status:** ✅ CONCLUÍDA (P1+P2+P3 — 2026-06-01)
 **Depende de:** F0.1 (stack + WhatsApp pareado + agente respondendo) ✅
 **Discovery:** ver `discovery.md` (mecânica de registro de tools resolvida).
 
@@ -63,7 +63,7 @@ Substituir os placeholders por:
 
 - **P1 — Harness + dummy auto-aprovada no caminho real:** ✅ **CONCLUÍDO 2026-06-01.** Mecanismo final (após descobrir que o bridge ignora `sdk.*`): `.mcp.json` no dir do agente + `enableAllProjectMcpServers`/`permissions.allow` no `settings.local.json`. Validado E2E: WhatsApp "use a tool ping com echo=oi" → `pong 🏓 (oi)` sem aprovação manual; tool call visível em `genie agent log`.
 - **P2 — System prompt inicial:** ✅ **CONCLUÍDO 2026-06-01.** `AGENTS.md` reescrito (missão = segundo cérebro no WhatsApp; tom anti-textão; usar tools quando a tarefa pedir; sempre fechar com `omni done`; marcado que captura/pesquisa reais NÃO existem ainda — anti-alucinação). Bridge confirmado carregando-o via `--append-system-prompt-file`. Bloco `sdk.*` inerte removido do `agent.yaml` (limpeza pendente do P1). Validado E2E: WhatsApp "me dá um aço e roda o pink com echo=p2" (autocorrect de "ack/ping") → agente leu "aço"=áudio, chamou `mcp__hello__ping`, mandou voice note + texto `pong 🏓 (p2)` e fechou com `omni done`. Comportamento (curto, usou tool, fechou turno) governado pelo novo prompt.
-- **P3 — Documentar o harness:** README curto em `tools/` com o passo-a-passo de "como adicionar uma tool" (base para M1).
+- **P3 — Documentar o harness:** ✅ **CONCLUÍDO 2026-06-01.** `tools/README.md` escrito com o passo-a-passo "como adicionar uma tool" (scaffold Bun → `server.ts` MCP → `.mcp.json` → auto-aprovação em `settings.local.json` → verificar via `genie agent log`), incluindo as armadilhas do spike (bridge ignora `sdk.*`; `observe` não conta; órfãos `claude`; caminho absoluto). Comentário stale do `hello-mcp/server.ts` corrigido. **F0.2 fechada — segue M1.**
 
 ## Validação
 
