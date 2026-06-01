@@ -1,0 +1,8 @@
+promptMode: append
+model: sonnet
+
+# NOTA (2026-06-01): o bloco `sdk.{mcpServers,allowedTools}` foi REMOVIDO daqui.
+# O bridge WhatsApp spawna o `claude` nativo SEM --mcp-config/--allowedTools, então
+# esse bloco era IGNORADO (só valia no modo SDK/print do smoke-test).
+# Registro real das tools = `.mcp.json` (servers) + `.claude/settings.local.json`
+# (`enableAllProjectMcpServers` + `permissions.allow`). Ver F0.2/discovery.md.

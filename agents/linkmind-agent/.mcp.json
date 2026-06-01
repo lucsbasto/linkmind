@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "hello": {
+      "command": "bun",
+      "args": ["run", "/home/lucsb/linkmind/tools/hello-mcp/server.ts"]
+    }
+  }
+}

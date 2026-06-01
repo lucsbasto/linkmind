@@ -32,3 +32,12 @@ tmux-*.log
 .genie/chat/
 .genie/sessions.json
 .genie/*.log
+
+# OMC orchestration runtime (sessions, project-memory, hud cache) — local only
+.omc/
+
+# Editor/agent backups
+*.bak
+
+# WhatsApp pairing QR (ephemeral, regenerated on demand)
+wa-qr.png
