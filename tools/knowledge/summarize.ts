@@ -23,8 +23,8 @@ export type SummarizeResult =
   | { ok: true; card: FeynmanCard }
   | { ok: false; error: string };
 
-const MAX_CHARS = 4_000; // texto enviado ao Gemini — latência cresce muito (2k≈22s, 8k>120s); gist costuma estar no começo
-const GEMINI_TIMEOUT_MS = 120_000; // cold start do gemini pode levar dezenas de s
+const MAX_CHARS = 16_000; // texto enviado ao Gemini. Como roda em background (worker), priorizamos fidelidade sobre latência.
+const GEMINI_TIMEOUT_MS = 360_000; // 6 min — a latência cresce muito com o tamanho (2k≈22s, 8k>120s); em background dá pra esperar
 
 function buildPrompt(reinforce: boolean): string {
   const base = [
