@@ -1,7 +1,7 @@
 # F1.4 — Resumo Feynman (Gemini CLI) + persistência (escrita)
 
 **Milestone:** M1 — MVP Núcleo (Captura + Pesquisa)
-**Status:** 📝 SPEC — escrita 2026-06-01; implementação não iniciada.
+**Status:** 🚧 IN PROGRESS — P0 ✅ (2026-06-01); próximo P1 (sumarização Gemini).
 **Depende de:** F1.2 (`fetch_web_content` entrega o texto limpo) ✅ · F0.2 (tool harness) ✅ · Gemini CLI nativo Linux + OAuth headless ✅ (ver memória `linkmind-gemini-cli`) · autopg/pgserve em `127.0.0.1:5432` ✅
 **Habilita:** **Feature de recuperação** ("me envia o link de tal assunto") — slice de leitura, próxima feature. F1.7 (gatilho async) reusa a mesma tabela.
 
@@ -104,7 +104,7 @@ CREATE TABLE IF NOT EXISTS knowledge_node (
 
 ## Stories / tarefas
 
-- **P0 — Conexão + migration:** descobrir/validar a connection string do autopg (DB, user, senha — `~/.autopg/`), criar (ou usar) database do LinkMind, aplicar a migration `knowledge_node`. Validar `INSERT`/`SELECT` standalone via `Bun.sql`.
+- **P0 — Conexão + migration:** ✅ **CONCLUÍDO (2026-06-01).** Conexão = **socket unix com trust** (sem senha): `new SQL({ path: "/run/user/1000/pgserve/.s.PGSQL.5432", username:"postgres", database:"linkmind", tls:false })` — a forma `hostname`+`port` dá "Connection closed" (TLS). Helper em `tools/knowledge/db.ts` (socket/DB/user overridáveis por env p/ portabilidade). Database `linkmind` criado; migration `migrations/001_knowledge_node.sql` aplicada via `tools/knowledge/migrate.ts` (idempotente, re-rodável). INSERT/SELECT/DELETE validados. **Quirk:** `Bun.sql` devolve `jsonb` como **string** → `JSON.parse(row.card)` ao ler. **Nota:** o Postgres do **Omni** é outro (`localhost:8432/omni`) — não usar; LinkMind usa o autopg 5432.
 - **P1 — Sumarização Gemini:** função `summarizeFeynman(text)` — prompt + `gemini -p` headless + extração/validação zod do JSON + 1 retry + silenciar ruído. Validar standalone com um artigo real (texto capturado pela F1.2) → card coerente.
 - **P2 — Refator lib + tool `archive_link`:** extrair `tools/lib/extract.ts` (F1.2 importa), montar `tools/knowledge/server.ts` orquestrando captura → resumo → persist, com erros por etapa. Validar standalone com uma URL real → linha no DB + retorno do card.
 - **P3 — Registro + AGENTS.md + E2E:** registrar server `knowledge` (`.mcp.json` + allow), **atualizar `AGENTS.md`**, matar órfãos `claude.*linkmind-agent`, mandar link no WhatsApp → conferir `[C] mcp__knowledge__archive_link` no `genie agent log` + linha em `knowledge_node` + resposta curta com o card.

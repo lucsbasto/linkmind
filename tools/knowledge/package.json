@@ -1,0 +1,19 @@
+{
+  "name": "knowledge",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "migrate": "bun run migrate.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^4.4.3"
+  }
+}
