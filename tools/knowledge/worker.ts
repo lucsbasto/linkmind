@@ -50,10 +50,11 @@ async function main(): Promise<void> {
   const db = openDb();
   try {
     const summaryText = `${card.ideia_central}\n${card.pilares.join("\n")}\n${card.aplicacao}`;
+    // `chat` = origem (OMNI_TO): é pra onde os lembretes de "não leu ainda" voltam.
     await db`
-      INSERT INTO knowledge_node (url, title, topico, card, summary_text)
+      INSERT INTO knowledge_node (url, title, topico, card, summary_text, chat)
       VALUES (${captured.url}, ${captured.title ?? null}, ${card.topico},
-              ${JSON.stringify(card)}::jsonb, ${summaryText})`;
+              ${JSON.stringify(card)}::jsonb, ${summaryText}, ${OMNI_TO})`;
   } catch (e) {
     await sendWhatsApp(OMNI_TO, `⚠️ Resumi, mas falhei ao salvar (${(e as Error).message}).\n🔗 ${url}`);
     return;

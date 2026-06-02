@@ -8,7 +8,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { openSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
-import { findSummaries } from "./recall.ts";
+import { findSummaries, markRecalled } from "./recall.ts";
 import { sendWhatsApp, formatCard } from "./notify.ts";
 
 const WORKER = join(import.meta.dir, "worker.ts");
@@ -79,9 +79,11 @@ async function sendSummary(assunto: string, chat: string): Promise<RecallResult>
     return { ok: true, found: 0 };
   }
 
-  // Manda o mais recente como card completo.
+  // Manda o mais recente como card completo e marca como LIDO (para o ciclo de
+  // lembretes daquele node — ele saiu da fila de "não leu ainda").
   const top = matches[0];
   await sendWhatsApp(to, formatCard(top.card, top.title ?? undefined, top.url));
+  await markRecalled(top.id).catch(() => {}); // best-effort: não falha o envio se o UPDATE der erro
 
   // Se houver mais de um match, lista os outros pra o usuário escolher.
   if (matches.length > 1) {

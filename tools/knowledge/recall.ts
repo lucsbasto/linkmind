@@ -8,6 +8,7 @@ import { openDb } from "./db.ts";
 import { CardSchema, type FeynmanCard } from "./summarize.ts";
 
 export type Summary = {
+  id: string;
   topico: string;
   title: string | null;
   url: string;
@@ -23,12 +24,13 @@ export async function findSummaries(assunto: string, limit = 5): Promise<Summary
   const db = openDb();
   try {
     const rows = await db`
-      SELECT topico, title, url, card, created_at
+      SELECT id, topico, title, url, card, created_at
       FROM knowledge_node
       WHERE topico ILIKE ${like} OR title ILIKE ${like}
       ORDER BY created_at DESC
       LIMIT ${limit}`;
     return rows.map((r: any) => ({
+      id: String(r.id),
       topico: r.topico,
       title: r.title,
       url: r.url,
@@ -36,6 +38,19 @@ export async function findSummaries(assunto: string, limit = 5): Promise<Summary
       card: CardSchema.parse(typeof r.card === "string" ? JSON.parse(r.card) : r.card),
       created_at: String(r.created_at),
     }));
+  } finally {
+    await db.end();
+  }
+}
+
+/**
+ * Marca um node como LIDO (recuperado). Zera o ciclo de lembretes: a partir daqui
+ * ele não entra mais na varredura do reminder.ts (que filtra last_recalled_at IS NULL).
+ */
+export async function markRecalled(id: string): Promise<void> {
+  const db = openDb();
+  try {
+    await db`UPDATE knowledge_node SET last_recalled_at = now() WHERE id = ${id}`;
   } finally {
     await db.end();
   }
