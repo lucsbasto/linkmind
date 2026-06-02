@@ -8,6 +8,8 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { openSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
+import { findSummaries } from "./recall.ts";
+import { sendWhatsApp, formatCard } from "./notify.ts";
 
 const WORKER = join(import.meta.dir, "worker.ts");
 const WORKER_LOG = join(import.meta.dir, "worker.log");
@@ -55,6 +57,41 @@ function archiveLink(rawUrl: string, chat: string): ArchiveResult {
   return { ok: true, status: "processing" };
 }
 
+// Recuperação SÍNCRONA (sem Gemini/fetch → rápido): busca o card salvo por
+// assunto e o reenvia pro chat. A tool faz o `omni send` (não o agente), pra o
+// card voltar formatado igualzinho — sem o agente reescrever/encurtar.
+type RecallResult = { ok: boolean; found?: number; topico?: string; error?: string };
+
+async function sendSummary(assunto: string, chat: string): Promise<RecallResult> {
+  if (!assunto || !assunto.trim()) return { ok: false, error: "missing_assunto" };
+  const to = chat?.trim();
+  if (!to) return { ok: false, error: "missing_chat" };
+
+  let matches;
+  try {
+    matches = await findSummaries(assunto);
+  } catch (e) {
+    return { ok: false, error: `db: ${(e as Error).message}` };
+  }
+
+  if (matches.length === 0) {
+    await sendWhatsApp(to, `🔍 Não achei nada salvo sobre "${assunto}".`);
+    return { ok: true, found: 0 };
+  }
+
+  // Manda o mais recente como card completo.
+  const top = matches[0];
+  await sendWhatsApp(to, formatCard(top.card, top.title ?? undefined, top.url));
+
+  // Se houver mais de um match, lista os outros pra o usuário escolher.
+  if (matches.length > 1) {
+    const outros = matches.slice(1).map((m) => `• ${m.title ?? m.topico}`).join("\n");
+    await sendWhatsApp(to, `Tenho outros ${matches.length - 1} sobre isso:\n${outros}`);
+  }
+
+  return { ok: true, found: matches.length, topico: top.topico };
+}
+
 const server = new McpServer({ name: "knowledge", version: "0.1.0" });
 
 server.registerTool(
@@ -79,6 +116,34 @@ server.registerTool(
   },
   async ({ url, chat }) => {
     const result = archiveLink(url, chat);
+    return { content: [{ type: "text", text: JSON.stringify(result) }] };
+  },
+);
+
+server.registerTool(
+  "send_summary",
+  {
+    title: "Send Summary",
+    description:
+      "Recupera e REENVIA o resumo (card) de um link JÁ SALVO, buscando por " +
+      "assunto/tópico. Use quando o usuário pedir algo como \"me manda/lembra o " +
+      "resumo de X\" ou \"o que eu salvei sobre X\". A tool manda o card direto no " +
+      "chat — você só dá um ack curto (ex.: \"te mandei 👍\"). Se vier found:0, " +
+      "avise em uma linha que não tem nada salvo sobre isso.",
+    inputSchema: {
+      assunto: z
+        .string()
+        .describe("Assunto/tópico a buscar (ex.: 'useEffect', 'skills'). Busca por aproximação no tópico e no título."),
+      chat: z
+        .string()
+        .describe(
+          "Chat de DESTINO — copie EXATAMENTE o valor de `chat:` do contexto do " +
+            "turno (ex.: 72254369050669@lid). É pra onde o card será enviado.",
+        ),
+    },
+  },
+  async ({ assunto, chat }) => {
+    const result = await sendSummary(assunto, chat);
     return { content: [{ type: "text", text: JSON.stringify(result) }] };
   },
 );
