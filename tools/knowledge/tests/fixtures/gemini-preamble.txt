@@ -1,0 +1,10 @@
+Claro! Aqui está o card no formato pedido:
+
+{
+  "ideia_central": "Entender supera memorizar.",
+  "pilares": ["Pense do primeiro princípio", "Teste seu entendimento ensinando"],
+  "aplicacao": "Antes da prova, explique a matéria para um colega.",
+  "topico": "Estudo eficaz"
+}
+
+Espero que ajude!

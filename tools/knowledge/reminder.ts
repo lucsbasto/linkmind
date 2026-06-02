@@ -18,10 +18,15 @@
 import { openDb } from "./db.ts";
 import { sendWhatsApp } from "./notify.ts";
 
-const DIAS = Number(process.env.LINKMIND_REMINDER_DIAS ?? "3");
-const MAX = Number(process.env.LINKMIND_REMINDER_MAX ?? "3");
+/** Lê os limites do env em tempo de chamada (default 3) — permite override por teste. */
+function limites(): { DIAS: number; MAX: number } {
+  return {
+    DIAS: Number(process.env.LINKMIND_REMINDER_DIAS ?? "3"),
+    MAX: Number(process.env.LINKMIND_REMINDER_MAX ?? "3"),
+  };
+}
 
-type Pendente = {
+export type Pendente = {
   id: string;
   chat: string;
   url: string;
@@ -31,7 +36,8 @@ type Pendente = {
 };
 
 /** 1 node por chat (o mais antigo elegível): não lido, parado há ≥DIAS, abaixo do teto. */
-async function buscarPendentes(): Promise<Pendente[]> {
+export async function buscarPendentes(): Promise<Pendente[]> {
+  const { DIAS, MAX } = limites();
   const db = openDb();
   try {
     const rows = await db`
@@ -59,7 +65,7 @@ async function buscarPendentes(): Promise<Pendente[]> {
   }
 }
 
-function formatNudge(p: Pendente): string {
+export function formatNudge(p: Pendente): string {
   const nome = p.title ?? p.topico;
   return [
     `📚 Você salvou *${nome}* há ${p.idade_dias} dias e ainda não leu.`,
@@ -68,7 +74,7 @@ function formatNudge(p: Pendente): string {
   ].join("\n");
 }
 
-async function marcarLembrado(id: string): Promise<void> {
+export async function marcarLembrado(id: string): Promise<void> {
   const db = openDb();
   try {
     await db`
@@ -81,6 +87,7 @@ async function marcarLembrado(id: string): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  const { DIAS, MAX } = limites();
   const pendentes = await buscarPendentes();
   console.error(`[reminder] ${pendentes.length} chat(s) com artigo parado (DIAS=${DIAS}, MAX=${MAX})`);
   for (const p of pendentes) {
@@ -95,11 +102,15 @@ async function main(): Promise<void> {
   }
 }
 
-const startedAt = new Date().toISOString();
-console.error(`[reminder] start ${startedAt}`);
-main()
-  .then(() => console.error(`[reminder] done`))
-  .catch((e) => {
-    console.error(`[reminder] CRASH: ${(e as Error).stack ?? e}`);
-    process.exit(1);
-  });
+// --- script: `bun run reminder.ts` (ou agendado). Importar o módulo NÃO dispara
+// o main (nem toca o DB / WhatsApp) — só a execução direta como CLI. ---
+if (import.meta.main) {
+  const startedAt = new Date().toISOString();
+  console.error(`[reminder] start ${startedAt}`);
+  main()
+    .then(() => console.error(`[reminder] done`))
+    .catch((e) => {
+      console.error(`[reminder] CRASH: ${(e as Error).stack ?? e}`);
+      process.exit(1);
+    });
+}

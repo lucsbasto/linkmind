@@ -1,0 +1,8 @@
+```json
+{
+  "ideia_central": "A técnica Feynman expõe o que você não entende.",
+  "pilares": ["Ensinar revela lacunas", "Simplificar força clareza"],
+  "aplicacao": "Explique o tema em voz alta para si mesmo.",
+  "topico": "Aprendizado ativo"
+}
+```

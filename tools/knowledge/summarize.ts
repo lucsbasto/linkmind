@@ -46,7 +46,7 @@ function buildPrompt(reinforce: boolean): string {
 }
 
 /** Extrai o primeiro objeto JSON de uma saída que pode vir com cercas/ruído. */
-function extractJson(raw: string): unknown {
+export function extractJson(raw: string): unknown {
   const trimmed = raw.trim();
   // Remove cercas ```json ... ``` se houver.
   const fence = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
@@ -78,6 +78,13 @@ async function runGemini(promptText: string, stdinText: string): Promise<string>
   return out;
 }
 
+/**
+ * Indireção para o runner do Gemini. Em produção aponta para `runGemini` (shell-out
+ * real). Os testes fazem `spyOn(_internals, "runGemini")` para evitar spawnar o
+ * binário (~140s). Não altera o comportamento em runtime: o default é o runner real.
+ */
+export const _internals = { runGemini };
+
 export async function summarizeFeynman(text: string): Promise<SummarizeResult> {
   const content = text.slice(0, MAX_CHARS);
   if (!content.trim()) return { ok: false, error: "texto vazio para resumir" };
@@ -85,7 +92,7 @@ export async function summarizeFeynman(text: string): Promise<SummarizeResult> {
   let lastErr = "";
   for (const reinforce of [false, true]) {
     try {
-      const raw = await runGemini(buildPrompt(reinforce), content);
+      const raw = await _internals.runGemini(buildPrompt(reinforce), content);
       const parsed = CardSchema.safeParse(extractJson(raw));
       if (parsed.success) return { ok: true, card: parsed.data };
       lastErr = `validação falhou: ${parsed.error.issues.map((i) => i.path.join(".") + " " + i.message).join("; ")}`;
@@ -124,7 +131,7 @@ export async function answerQuestion(pergunta: string, articleText: string): Pro
   ].join("\n");
 
   try {
-    const raw = await runGemini(prompt, text);
+    const raw = await _internals.runGemini(prompt, text);
     const answer = raw.trim();
     if (!answer) return { ok: false, error: "gemini retornou vazio" };
     return { ok: true, answer };

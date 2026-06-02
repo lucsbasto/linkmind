@@ -23,7 +23,14 @@ export type ExtractResult = {
   error?: string;
 };
 
-export async function extractArticle(rawUrl: string): Promise<ExtractResult> {
+/**
+ * `fetchImpl` é injetável só para teste (default = `fetch` global). Em uso normal
+ * o comportamento é idêntico ao de antes; os testes passam um mock para não tocar a rede.
+ */
+export async function extractArticle(
+  rawUrl: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<ExtractResult> {
   let url: URL;
   try {
     url = new URL(rawUrl);
@@ -36,7 +43,7 @@ export async function extractArticle(rawUrl: string): Promise<ExtractResult> {
 
   let res: Response;
   try {
-    res = await fetch(url, {
+    res = await fetchImpl(url, {
       headers: { "User-Agent": USER_AGENT, Accept: "text/html,application/xhtml+xml" },
       redirect: "follow",
       signal: AbortSignal.timeout(TIMEOUT_MS),
