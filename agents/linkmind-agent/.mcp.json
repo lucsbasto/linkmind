@@ -7,6 +7,10 @@
     "web": {
       "command": "bun",
       "args": ["run", "/home/lucsb/linkmind/tools/fetch-web-content/server.ts"]
+    },
+    "knowledge": {
+      "command": "bun",
+      "args": ["run", "/home/lucsb/linkmind/tools/knowledge/server.ts"]
     }
   }
 }

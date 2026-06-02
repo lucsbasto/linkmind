@@ -25,6 +25,9 @@ Thumbs.db
 # tmux logs (genie/tmux stray output)
 tmux-*.log
 
+# Worker runtime logs (knowledge archiver)
+tools/knowledge/worker.log*
+
 # Genie workspace runtime (track config + agent defs, ignore runtime)
 .genie/worktrees/
 .genie/state/
