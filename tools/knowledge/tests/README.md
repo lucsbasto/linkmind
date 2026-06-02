@@ -4,7 +4,7 @@
 > os testes são derivados do **comportamento exigido pelo PRD/spec**, NÃO do código atual.
 > Eles servem de **guard / TDD** para guiar a implementação. Onde a feature já existe, o teste
 > afirma o contrato da spec (e se o código divergir, o teste deve FALHAR e expor a divergência).
-> Onde a feature ainda não foi implementada (F1.3 YouTube, F1.6 Brave, F1.7 release loop),
+> Onde a feature ainda não foi implementada (F1.3 YouTube),
 > o teste define o contrato-alvo e fica **RED** até a implementação existir.
 
 ## Como rodar
@@ -43,6 +43,6 @@ tests/
 - **F1.2** (extract): validação de URL, `no_content`, `http_error:<status>`, `unsupported_content_type:*`, `too_large`, `timeout`.
 - **F1.3** YT-01..05/10/12: parse de `videoId` (todas as formas de URL + inválidas).
 - **F1.4** (summarize/notify): `extractJson`, `CardSchema`, `gemini_bad_json` após retry, `formatCard`/`formatConfirmation`.
-- **F1.6** SR-01..04/08/11: `braveSearch` (mock HTTP, rate limit, erro HTTP).
+- **F1.6** SR-00..08: `researchWeb` (pesquisa via Gemini grounding, mock do runGemini, retry, parse de fontes).
 - **F1.7** RL-01..09: release `FOR UPDATE SKIP LOCKED` (concorrência determinística).
 - **recall/reminder**: `findSummaries`/`findArticleForQA`/`markRecalled`, varredura `DISTINCT ON (chat)`.

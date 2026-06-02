@@ -1,36 +1,23 @@
 /**
- * F1.10 — TDD guard tests para F1.6 (`search_web_knowledge` / wrapper Brave Search).
+ * F1.6 — unit de `search.ts` (pesquisa web via Gemini grounding).
  *
- * ⚠️ A feature F1.6 NÃO está implementada. Estes testes definem o CONTRATO-ALVO
- * derivado da spec (`.specs/features/F1.6-search-web-knowledge/spec.md`) e ficam RED
- * até `search.ts` existir. Esse RED é correto e esperado.
+ * Motor trocado de Brave → Gemini CLI nativo (decisão 2026-06-02): `researchWeb(query)`
+ * faz um `gemini -p` com grounding e devolve um card Feynman + fontes. O runner do
+ * Gemini é injetável (`deps.runGemini`) → os testes mockam a saída SEM spawnar o
+ * binário nem tocar a rede.
  *
- * --------------------------------------------------------------------------------
- * CONTRATO ASSUMIDO (o que o implementador da F1.6 deve cumprir):
- *
- *   módulo:  tools/knowledge/search.ts
- *
- *   export async function braveSearch(
+ * CONTRATO:
+ *   export async function researchWeb(
  *     query: string,
- *     deps?: { fetch?: typeof fetch; apiKey?: string },
- *   ): Promise<SearchResult>
- *     - `fetch` injetável (mock HTTP). `apiKey` default = process.env.BRAVE_API_KEY.
- *     - chama GET https://api.search.brave.com/res/v1/web/search?q=<query>
- *       com header X-Subscription-Token: <apiKey>.
- *     - shape de retorno (segue o padrão `{ ok:false, error }` do extract.ts/summarize.ts):
- *         | { ok: true;  results: { title: string; url: string; description: string }[] }
- *         | { ok: false; error: string }
- *     - mapa de erros (spec "Erros"):
- *         200 com web.results[] não-vazio  → { ok:true, results:[...] }     (SR-01)
- *         429                               → { ok:false, error:"brave_rate_limit" } (SR-02)
- *         5xx/4xx (≠429)                    → { ok:false, error:"brave_http:<status>" } (SR-03)
- *         web.results vazio                 → { ok:false, error:"brave_no_results" }  (SR-04)
- *         sem API key                       → { ok:false, error:"brave_no_key" }
- *
- * Cobertura por asserts reais (guarded por `mod`): SR-01, SR-02, SR-03, SR-04 +
- * missing-key. SR-08 (gemini lixo — pertence ao worker/summarize) e SR-11 (guarda
- * de cota — depende de contador interno não-especificado) ficam como test.todo.
- * --------------------------------------------------------------------------------
+ *     deps?: { runGemini?: (prompt: string, stdin: string) => Promise<string> },
+ *   ): Promise<
+ *     | { ok: true;  card: FeynmanCard; sources: { title: string; url: string }[] }
+ *     | { ok: false; error: string }
+ *   >
+ *   - query vazia → { ok:false, error:"query vazia" } SEM chamar o Gemini.
+ *   - JSON válido (4 chaves do card + fontes) → { ok:true, card, sources }.
+ *   - JSON inválido/sem chaves 2× (com retry) → { ok:false, error:"gemini_bad_json: ..." }.
+ *   - 1 retry: 1ª saída ruim, 2ª boa → ok.
  */
 import { describe, test, expect } from "bun:test";
 
@@ -38,158 +25,106 @@ let mod: any = null;
 try {
   mod = await import("../../search.ts");
 } catch {
-  /* F1.6 ainda não implementada — guard abaixo reporta RED limpo */
+  /* guard abaixo reporta RED limpo se o módulo sumir */
 }
 
-/** Monta um fetch falso que devolve uma Response com o status/json dados. */
-function fakeFetch(opts: { status?: number; body?: unknown }): typeof fetch {
-  const status = opts.status ?? 200;
-  const body = JSON.stringify(opts.body ?? {});
-  return (async () =>
-    new Response(body, {
-      status,
-      headers: { "content-type": "application/json" },
-    })) as unknown as typeof fetch;
-}
-
-const BRAVE_OK_BODY = {
-  web: {
-    results: [
-      {
-        title: "O que é MCP",
-        url: "https://example.com/mcp",
-        description: "Model Context Protocol em uma frase.",
-        extra: "ignorado",
-      },
-      {
-        title: "MCP guia",
-        url: "https://example.com/mcp-guia",
-        description: "Guia prático.",
-      },
-    ],
-  },
+const CARD_OK = {
+  ideia_central: "MCP é um protocolo aberto para conectar LLMs a ferramentas.",
+  pilares: ["Padroniza tools via servidores", "Transporte stdio/HTTP"],
+  aplicacao: "Use MCP para expor suas ferramentas a um agente.",
+  topico: "Model Context Protocol",
+  fontes: [
+    { titulo: "Site oficial", url: "https://modelcontextprotocol.io" },
+    { titulo: "Spec", url: "https://modelcontextprotocol.io/spec" },
+  ],
 };
 
+/** runGemini falso: devolve, em sequência, as saídas dadas (uma por chamada). */
+function fakeGemini(...outputs: string[]): {
+  run: (p: string, s: string) => Promise<string>;
+  calls: () => number;
+} {
+  let i = 0;
+  return {
+    run: async () => outputs[Math.min(i++, outputs.length - 1)] ?? "",
+    calls: () => i,
+  };
+}
+
 describe("F1.6 search.ts — guard de existência", () => {
-  // F1.6 implementada: search.ts existe e exporta braveSearch, então os guards
-  // SR-01..04 abaixo passaram a rodar como testes reais. (Era test.failing enquanto
-  // o módulo não existia — convertido como o RL-00 da F1.7, ver release.test.ts.)
-  test("SR-00 search.ts implementado e exporta braveSearch (F1.6 guard)", () => {
-    expect(mod, "search.ts não implementado ainda — F1.6").not.toBeNull();
-    expect(typeof mod?.braveSearch, "braveSearch ausente — F1.6").toBe("function");
-  });
-
-  test("exporta braveSearch", () => {
-    if (!mod) return;
-    expect(typeof mod.braveSearch).toBe("function");
+  test("SR-00 search.ts implementado e exporta researchWeb (F1.6 guard)", () => {
+    expect(mod, "search.ts não implementado — F1.6").not.toBeNull();
+    expect(typeof mod?.researchWeb, "researchWeb ausente — F1.6").toBe("function");
   });
 });
 
-describe("F1.6 braveSearch — mock HTTP (SR-01..04)", () => {
-  test("SR-01 Brave 200 com web.results[] → lista {title,url,description} parseada", async () => {
+describe("F1.6 researchWeb — mock do Gemini (sem rede/spawn)", () => {
+  test("SR-01 saída JSON válida → { ok:true, card, sources } parseado", async () => {
     if (!mod) return;
-    const res = await mod.braveSearch("o que é MCP", {
-      apiKey: "FAKE",
-      fetch: fakeFetch({ status: 200, body: BRAVE_OK_BODY }),
-    });
+    const g = fakeGemini(JSON.stringify(CARD_OK));
+    const res = await mod.researchWeb("o que é MCP", { runGemini: g.run });
     expect(res.ok).toBe(true);
-    expect(Array.isArray(res.results)).toBe(true);
-    expect(res.results.length).toBe(2);
-    const first = res.results[0];
-    expect(first.title).toBe("O que é MCP");
-    expect(first.url).toBe("https://example.com/mcp");
-    expect(first.description).toBe("Model Context Protocol em uma frase.");
-    // só os 3 campos do contrato — nada de campos crus da Brave vazando
-    expect(Object.keys(first).sort()).toEqual(["description", "title", "url"]);
+    expect(res.card.topico).toBe("Model Context Protocol");
+    expect(res.card.pilares.length).toBe(2);
+    // fontes: titulo→title, descarta sem url
+    expect(res.sources.length).toBe(2);
+    expect(res.sources[0]).toEqual({ title: "Site oficial", url: "https://modelcontextprotocol.io" });
+    expect(g.calls()).toBe(1); // acertou de primeira, sem retry
   });
 
-  test("SR-02 Brave 429 → error:brave_rate_limit", async () => {
+  test("SR-01b tolera cercas ```json e prefácio ao redor do JSON", async () => {
     if (!mod) return;
-    const res = await mod.braveSearch("qualquer", {
-      apiKey: "FAKE",
-      fetch: fakeFetch({ status: 429 }),
-    });
+    const ruidoso = "Aqui está:\n```json\n" + JSON.stringify(CARD_OK) + "\n```\n";
+    const g = fakeGemini(ruidoso);
+    const res = await mod.researchWeb("mcp", { runGemini: g.run });
+    expect(res.ok).toBe(true);
+    expect(res.card.topico).toBe("Model Context Protocol");
+  });
+
+  test("SR-04 query vazia → error:query vazia (NÃO chama o Gemini)", async () => {
+    if (!mod) return;
+    const g = fakeGemini(JSON.stringify(CARD_OK));
+    const res = await mod.researchWeb("   ", { runGemini: g.run });
     expect(res.ok).toBe(false);
-    expect(res.error).toBe("brave_rate_limit");
+    expect(res.error).toBe("query vazia");
+    expect(g.calls(), "query vazia não deve chamar o Gemini").toBe(0);
   });
 
-  test("SR-03 Brave 5xx → error:brave_http:<status>", async () => {
+  test("SR-08 JSON inválido 2× (com retry) → error:gemini_bad_json", async () => {
     if (!mod) return;
-    const res = await mod.braveSearch("qualquer", {
-      apiKey: "FAKE",
-      fetch: fakeFetch({ status: 503 }),
-    });
+    const g = fakeGemini("não é json", "ainda não é json");
+    const res = await mod.researchWeb("qualquer", { runGemini: g.run });
     expect(res.ok).toBe(false);
-    expect(res.error).toBe("brave_http:503");
+    expect(res.error).toMatch(/^gemini_bad_json/);
+    expect(g.calls()).toBe(2); // tentou 2× (1 retry)
   });
 
-  test("SR-03b Brave 4xx (≠429) → error:brave_http:<status>", async () => {
+  test("SR-08b card sem chaves obrigatórias 2× → error:gemini_bad_json", async () => {
     if (!mod) return;
-    const res = await mod.braveSearch("qualquer", {
-      apiKey: "FAKE",
-      fetch: fakeFetch({ status: 401 }),
-    });
+    const incompleto = JSON.stringify({ ideia_central: "só isso" });
+    const g = fakeGemini(incompleto, incompleto);
+    const res = await mod.researchWeb("qualquer", { runGemini: g.run });
     expect(res.ok).toBe(false);
-    expect(res.error).toBe("brave_http:401");
+    expect(res.error).toMatch(/^gemini_bad_json/);
   });
 
-  test("SR-04 web.results vazio → error:brave_no_results", async () => {
+  test("retry: 1ª saída ruim, 2ª boa → ok", async () => {
     if (!mod) return;
-    const res = await mod.braveSearch("kjsdfkjasdf absurdo", {
-      apiKey: "FAKE",
-      fetch: fakeFetch({ status: 200, body: { web: { results: [] } } }),
-    });
-    expect(res.ok).toBe(false);
-    expect(res.error).toBe("brave_no_results");
+    const g = fakeGemini("lixo", JSON.stringify(CARD_OK));
+    const res = await mod.researchWeb("mcp", { runGemini: g.run });
+    expect(res.ok).toBe(true);
+    expect(g.calls()).toBe(2);
   });
 
-  test("SR-04b corpo 200 sem campo web → error:brave_no_results", async () => {
+  test("sources vazio quando o JSON não traz fontes", async () => {
     if (!mod) return;
-    const res = await mod.braveSearch("nada", {
-      apiKey: "FAKE",
-      fetch: fakeFetch({ status: 200, body: {} }),
-    });
-    expect(res.ok).toBe(false);
-    expect(res.error).toBe("brave_no_results");
-  });
-
-  test("API key ausente → error:brave_no_key (não chama a rede)", async () => {
-    if (!mod) return;
-    let called = false;
-    const spyFetch = (async () => {
-      called = true;
-      return new Response("{}", { status: 200 });
-    }) as unknown as typeof fetch;
-    const res = await mod.braveSearch("o que é MCP", { apiKey: "", fetch: spyFetch });
-    expect(res.ok).toBe(false);
-    expect(res.error).toBe("brave_no_key");
-    expect(called, "sem API key não deve chamar a Brave").toBe(false);
-  });
-
-  test("envia o header X-Subscription-Token com a apiKey", async () => {
-    if (!mod) return;
-    let seenToken: string | null = null;
-    const spyFetch = (async (_url: any, init: any) => {
-      const headers = new Headers(init?.headers);
-      seenToken = headers.get("X-Subscription-Token");
-      return new Response(JSON.stringify(BRAVE_OK_BODY), {
-        status: 200,
-        headers: { "content-type": "application/json" },
-      });
-    }) as unknown as typeof fetch;
-    await mod.braveSearch("o que é MCP", { apiKey: "FAKE-TOKEN", fetch: spyFetch });
-    expect(seenToken).toBe("FAKE-TOKEN");
+    const semFontes = { ...CARD_OK, fontes: undefined };
+    const g = fakeGemini(JSON.stringify(semFontes));
+    const res = await mod.researchWeb("mcp", { runGemini: g.run });
+    expect(res.ok).toBe(true);
+    expect(res.sources).toEqual([]);
   });
 });
 
-// --- casos que pertencem ao worker / dependem de estado não-especificado ---
-
-test.todo(
-  "SR-08 Gemini devolve lixo 2× → error:gemini_bad_json " +
-    "(coberto por summarize.ts/search-worker, não pelo wrapper braveSearch)",
-);
-
-test.todo(
-  "SR-11 guarda de cota: contador de uso incrementa por query " +
-    "(depende do mecanismo de contagem definido na implementação da F1.6)",
-);
+// --- guarda de cota: depende de mecanismo não-especificado (adiado) ---
+test.todo("SR-11 guarda de cota: contador de uso por mês (Gemini free tier) — adiado");

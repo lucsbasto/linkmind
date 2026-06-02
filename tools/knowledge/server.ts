@@ -75,9 +75,9 @@ function askArticle(pergunta: string, assunto: string, chat: string): ArchiveRes
 }
 
 // Pesquisa web ASSÍNCRONA (F1.6). Mesmo desenho do archive_link: valida e dispara
-// um worker detached (Brave Search → abre top URLs → resumo Gemini → RETÉM como
-// pendente). O resultado NÃO volta no turno: fica retido e o usuário pega com "pode
-// mandar" (release_pending). Retorna na hora pro agente dar um ack curto.
+// um worker detached (Gemini com grounding: pesquisa web + síntese Feynman → RETÉM
+// como pendente). O resultado NÃO volta no turno: fica retido e o usuário pega com
+// "pode mandar" (release_pending). Retorna na hora pro agente dar um ack curto.
 function searchWebKnowledge(query: string, chat: string): ArchiveResult {
   if (!query || !query.trim()) return { ok: false, error: "missing_query" };
   if (!chat || !chat.trim()) {
