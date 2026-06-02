@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+#
+# LinkMind — gate de pre-push: roda a suíte de testes (F1.10) antes de cada `git push`.
+# Aborta o push se algo quebrou. Versionado em .githooks/ e ativado por:
+#     git config core.hooksPath .githooks
+#
+# - Trilha UNIT (offline, sem rede/DB) → SEMPRE roda e BLOQUEIA o push se falhar.
+# - Trilha INTEGRAÇÃO (precisa do pgserve vivo) → roda só se o socket existir; senão
+#   é pulada com aviso (não bloqueia — não há DB pra testar contra).
+# - Os 3 guards RED-por-design (F1.3/F1.6/F1.7) são `test.failing` → não quebram o gate.
+#
+# Escape hatch p/ emergência: `SKIP_TESTS=1 git push`.
+
+set -euo pipefail
+
+if [ "${SKIP_TESTS:-0}" = "1" ]; then
+  echo "⏭️  pre-push: SKIP_TESTS=1 — pulando a suíte de testes." >&2
+  exit 0
+fi
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+KNOWLEDGE_DIR="$REPO_ROOT/tools/knowledge"
+
+if [ ! -d "$KNOWLEDGE_DIR" ]; then
+  echo "⚠️  pre-push: $KNOWLEDGE_DIR não encontrado — nada pra testar." >&2
+  exit 0
+fi
+
+if ! command -v bun >/dev/null 2>&1; then
+  echo "❌ pre-push: 'bun' não está no PATH. Instale o Bun ou use SKIP_TESTS=1 git push." >&2
+  exit 1
+fi
+
+cd "$KNOWLEDGE_DIR"
+
+echo "🧪 pre-push: rodando suíte unit (offline)…" >&2
+if ! bun test tests/unit; then
+  echo "" >&2
+  echo "❌ pre-push ABORTADO: testes unit falharam. Corrija (ou SKIP_TESTS=1 git push p/ forçar)." >&2
+  exit 1
+fi
+
+# Integração só faz sentido com o pgserve no ar.
+PG_SOCKET="${LINKMIND_PG_SOCKET:-${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/pgserve/.s.PGSQL.5432}"
+if [ -S "$PG_SOCKET" ]; then
+  echo "🧪 pre-push: pgserve no ar — rodando suíte de integração (DB)…" >&2
+  if ! bun test tests/integration; then
+    echo "" >&2
+    echo "❌ pre-push ABORTADO: testes de integração falharam." >&2
+    exit 1
+  fi
+else
+  echo "⏭️  pre-push: pgserve fora do ar ($PG_SOCKET) — pulando integração." >&2
+  echo "    (suba com 'pm2 resurrect' / 'pgserve restart' p/ incluir a trilha de DB)" >&2
+fi
+
+echo "✅ pre-push: suíte verde — push liberado." >&2
+exit 0
