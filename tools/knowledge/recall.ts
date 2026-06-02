@@ -43,6 +43,64 @@ export async function findSummaries(assunto: string, limit = 5): Promise<Summary
   }
 }
 
+export type ArticleContent = {
+  id: string;
+  title: string | null;
+  url: string;
+  topico: string;
+  content: string;
+};
+
+/**
+ * Resultado da busca do artigo para Q&A. Distingue três casos pra dar mensagens
+ * úteis: achou com texto puro (`ok`), achou mas o node é antigo/sem `content`
+ * salvo (`no_content` — pré-feature de conteúdo), ou nada casou (`not_found`).
+ */
+export type ArticleLookup =
+  | { status: "ok"; article: ArticleContent }
+  | { status: "no_content"; title: string | null; url: string }
+  | { status: "not_found" };
+
+/**
+ * Acha o artigo (com texto puro salvo) pra responder uma pergunta sobre ele.
+ * Com `assunto`: melhor match por ILIKE em topico/title, mais recente primeiro.
+ * Sem `assunto` ("qual o pseudocódigo do artigo"): cai no mais recente que tenha
+ * `content`. Só serve nodes com `content` não-nulo; um match sem content (artigo
+ * salvo antes da feature de conteúdo) volta como `no_content`.
+ */
+export async function findArticleForQA(assunto: string): Promise<ArticleLookup> {
+  const term = assunto.trim();
+  const db = openDb();
+  try {
+    if (!term) {
+      // Sem assunto: o mais recente que tenha texto puro salvo.
+      const rows = await db`
+        SELECT id, title, url, topico, content
+        FROM knowledge_node
+        WHERE content IS NOT NULL
+        ORDER BY created_at DESC
+        LIMIT 1`;
+      if (rows.length === 0) return { status: "not_found" };
+      const r: any = rows[0];
+      return { status: "ok", article: { id: String(r.id), title: r.title, url: r.url, topico: r.topico, content: String(r.content) } };
+    }
+    // Com assunto: melhor match (mesmo sem content), pra distinguir no_content de not_found.
+    const like = `%${term}%`;
+    const rows = await db`
+      SELECT id, title, url, topico, content
+      FROM knowledge_node
+      WHERE topico ILIKE ${like} OR title ILIKE ${like}
+      ORDER BY (content IS NOT NULL) DESC, created_at DESC
+      LIMIT 1`;
+    if (rows.length === 0) return { status: "not_found" };
+    const r: any = rows[0];
+    if (r.content == null) return { status: "no_content", title: r.title, url: r.url };
+    return { status: "ok", article: { id: String(r.id), title: r.title, url: r.url, topico: r.topico, content: String(r.content) } };
+  } finally {
+    await db.end();
+  }
+}
+
 /**
  * Marca um node como LIDO (recuperado). Zera o ciclo de lembretes: a partir daqui
  * ele não entra mais na varredura do reminder.ts (que filtra last_recalled_at IS NULL).

@@ -96,6 +96,43 @@ export async function summarizeFeynman(text: string): Promise<SummarizeResult> {
   return { ok: false, error: `gemini_bad_json: ${lastErr}` };
 }
 
+// --- Q&A sobre o texto puro do artigo (F: pergunta sobre artigo salvo) ---
+
+const QA_MAX_CHARS = 24_000; // texto do artigo enviado ao Gemini pra Q&A (roda em background → prioriza cobertura)
+
+export type AnswerResult =
+  | { ok: true; answer: string }
+  | { ok: false; error: string };
+
+/**
+ * Responde uma pergunta usando SOMENTE o texto puro do artigo (`content`). Resposta
+ * livre (não JSON) — só capturamos o stdout do Gemini. A pergunta vai no `-p` (argv,
+ * sem shell → sem injeção); o artigo vai no stdin (evita ARG_MAX). Sem retry: se o
+ * Gemini falhar, devolvemos o erro pra avisar o usuário em vez de insistir.
+ */
+export async function answerQuestion(pergunta: string, articleText: string): Promise<AnswerResult> {
+  const text = articleText.slice(0, QA_MAX_CHARS);
+  if (!text.trim()) return { ok: false, error: "artigo sem texto" };
+  if (!pergunta.trim()) return { ok: false, error: "pergunta vazia" };
+
+  const prompt = [
+    "O conteúdo completo de um artigo está no stdin.",
+    `Responda à seguinte pergunta do usuário usando SOMENTE as informações desse artigo: "${pergunta.trim()}"`,
+    "Seja direto e fiel ao texto. Se a pergunta pede um trecho específico (código, pseudocódigo, citação, lista), reproduza-o tal como aparece no artigo.",
+    "Se a resposta NÃO estiver no artigo, diga em uma frase que o artigo não fala sobre isso — não invente nem complete com conhecimento externo.",
+    "Responda em português, conciso, em texto corrido para WhatsApp (evite markdown pesado).",
+  ].join("\n");
+
+  try {
+    const raw = await runGemini(prompt, text);
+    const answer = raw.trim();
+    if (!answer) return { ok: false, error: "gemini retornou vazio" };
+    return { ok: true, answer };
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  }
+}
+
 // --- harness standalone: `bun run summarize.ts <arquivo-de-texto>` ---
 if (import.meta.main) {
   const file = process.argv[2];

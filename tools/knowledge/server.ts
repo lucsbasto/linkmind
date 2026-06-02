@@ -12,6 +12,7 @@ import { findSummaries, markRecalled } from "./recall.ts";
 import { sendWhatsApp, formatCard } from "./notify.ts";
 
 const WORKER = join(import.meta.dir, "worker.ts");
+const QA_WORKER = join(import.meta.dir, "qa-worker.ts");
 const WORKER_LOG = join(import.meta.dir, "worker.log");
 
 // O bridge (genie daemon) spawna este server com um PATH enxuto que NÃO inclui
@@ -48,6 +49,25 @@ function archiveLink(rawUrl: string, chat: string): ArchiveResult {
   // PATH aumentado pro omni resolver no contexto detached do bridge.
   const logFd = openSync(WORKER_LOG, "a");
   Bun.spawn(["setsid", "bun", "run", WORKER, rawUrl, chat.trim()], {
+    stdin: "ignore",
+    stdout: logFd,
+    stderr: logFd,
+    env: { ...process.env, PATH: WORKER_PATH },
+  }).unref();
+
+  return { ok: true, status: "processing" };
+}
+
+// Q&A ASSÍNCRONO sobre o texto puro de um artigo salvo. Usa Gemini (lento) →
+// mesmo desenho do archive_link: dispara um worker detached e retorna na hora.
+// A resposta chega DEPOIS, numa mensagem nova. `assunto` é opcional — vazio = o
+// artigo mais recente ("qual o pseudocódigo do artigo").
+function askArticle(pergunta: string, assunto: string, chat: string): ArchiveResult {
+  if (!pergunta || !pergunta.trim()) return { ok: false, error: "missing_pergunta" };
+  if (!chat || !chat.trim()) return { ok: false, error: "missing_chat: destino da resposta não informado" };
+
+  const logFd = openSync(WORKER_LOG, "a");
+  Bun.spawn(["setsid", "bun", "run", QA_WORKER, pergunta.trim(), (assunto ?? "").trim(), chat.trim()], {
     stdin: "ignore",
     stdout: logFd,
     stderr: logFd,
@@ -118,6 +138,41 @@ server.registerTool(
   },
   async ({ url, chat }) => {
     const result = archiveLink(url, chat);
+    return { content: [{ type: "text", text: JSON.stringify(result) }] };
+  },
+);
+
+server.registerTool(
+  "ask_article",
+  {
+    title: "Ask Article",
+    description:
+      "Responde uma PERGUNTA ESPECÍFICA sobre um artigo JÁ SALVO, consultando o " +
+      "texto COMPLETO dele com a LLM (ex.: \"qual o pseudocódigo do artigo\", \"que " +
+      "exemplo ele dá\", \"o que ele fala sobre X\"). Diferente de send_summary, que " +
+      "só reenvia o resumo pronto. É ASSÍNCRONO — retorna status:\"processing\" e a " +
+      "resposta chega DEPOIS, numa mensagem nova (pode levar ~1 min). NÃO espere: dê " +
+      "um ack curto (ex.: \"deixa eu olhar no artigo, já te falo 👀\") e feche o turno.",
+    inputSchema: {
+      pergunta: z.string().describe("A pergunta do usuário sobre o artigo, em linguagem natural (ex.: 'qual o pseudocódigo?')."),
+      assunto: z
+        .string()
+        .optional()
+        .describe(
+          "Tema/título do artigo a consultar, se o usuário citou um (ex.: 'useEffect', " +
+            "'skills'). Busca por aproximação. DEIXE VAZIO se ele disser só 'o artigo' " +
+            "sem especificar — aí uso o último artigo salvo.",
+        ),
+      chat: z
+        .string()
+        .describe(
+          "Chat de DESTINO da resposta — copie EXATAMENTE o valor de `chat:` do " +
+            "contexto do turno (ex.: 72254369050669@lid). É pra onde a resposta vai.",
+        ),
+    },
+  },
+  async ({ pergunta, assunto, chat }) => {
+    const result = askArticle(pergunta, assunto ?? "", chat);
     return { content: [{ type: "text", text: JSON.stringify(result) }] };
   },
 );
