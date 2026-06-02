@@ -2,6 +2,8 @@
 
 **Last updated:** 2026-06-02
 
+> **✅ 2026-06-02 — CONTEÚDO COMPLETO DO ARTIGO É SALVO.** Antes só persistíamos título/tópico/card/summary_text — o texto inteiro (já capturado em `extract.ts → captured.text`) era jogado fora, então "me manda uma parte do artigo" não tinha fonte. Fix: migration `003_content.sql` (`ADD COLUMN content text`, idempotente, aplicada) + `worker.ts` INSERT passou a gravar `captured.text` em `content`. Worker é spawnado fresco por link → vale no próximo envio (sem matar processo). Nodes antigos (6) ficam com `content` NULL. **Decisão do usuário:** parar no armazenamento; **recuperação de trecho** (`send_excerpt` ou similar que busca por assunto e devolve o pedaço relevante do `content`) fica como **próxima feature** (specar depois).
+
 ## Next Step
 
 **Feature:** F0.1 → **CONCLUÍDA**. F0.2 → **CONCLUÍDA (P1+P2+P3, 2026-06-01)** — esqueleto do agente + tool harness com dummy `mcp__hello__ping`, system prompt real, harness documentado. Encerra o **M0 (Fundação)**. F1.2 → **CONCLUÍDA (P0–P4, 2026-06-01)** — tool real `fetch_web_content` registrada (server `web`) + **E2E pelo WhatsApp validado** (URL real → `[C] mcp__web__fetch_web_content` no `genie agent log` → resposta curta resumindo). Código todo em `a5698fc`; nada pendente de commit.
