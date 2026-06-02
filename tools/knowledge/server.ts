@@ -15,6 +15,7 @@ import { validateHttpUrl } from "./url.ts";
 
 const WORKER = join(import.meta.dir, "worker.ts");
 const QA_WORKER = join(import.meta.dir, "qa-worker.ts");
+const SEARCH_WORKER = join(import.meta.dir, "search-worker.ts");
 const WORKER_LOG = join(import.meta.dir, "worker.log");
 
 // O bridge (genie daemon) spawna este server com um PATH enxuto que NÃO inclui
@@ -64,6 +65,27 @@ function askArticle(pergunta: string, assunto: string, chat: string): ArchiveRes
 
   const logFd = openSync(WORKER_LOG, "a");
   Bun.spawn(["setsid", "bun", "run", QA_WORKER, pergunta.trim(), (assunto ?? "").trim(), chat.trim()], {
+    stdin: "ignore",
+    stdout: logFd,
+    stderr: logFd,
+    env: { ...process.env, PATH: WORKER_PATH },
+  }).unref();
+
+  return { ok: true, status: "processing" };
+}
+
+// Pesquisa web ASSÍNCRONA (F1.6). Mesmo desenho do archive_link: valida e dispara
+// um worker detached (Brave Search → abre top URLs → resumo Gemini → RETÉM como
+// pendente). O resultado NÃO volta no turno: fica retido e o usuário pega com "pode
+// mandar" (release_pending). Retorna na hora pro agente dar um ack curto.
+function searchWebKnowledge(query: string, chat: string): ArchiveResult {
+  if (!query || !query.trim()) return { ok: false, error: "missing_query" };
+  if (!chat || !chat.trim()) {
+    return { ok: false, error: "missing_chat: destino do resultado não informado" };
+  }
+
+  const logFd = openSync(WORKER_LOG, "a");
+  Bun.spawn(["setsid", "bun", "run", SEARCH_WORKER, query.trim(), chat.trim()], {
     stdin: "ignore",
     stdout: logFd,
     stderr: logFd,
@@ -244,6 +266,37 @@ server.registerTool(
   },
   async ({ chat }) => {
     const result = await releaseTool(chat);
+    return { content: [{ type: "text", text: JSON.stringify(result) }] };
+  },
+);
+
+server.registerTool(
+  "search_web_knowledge",
+  {
+    title: "Search Web Knowledge",
+    description:
+      "Pesquisa na WEB sob demanda quando o usuário faz uma DÚVIDA/pedido de pesquisa " +
+      "(\"pesquisa sobre X\", \"o que é Y\", \"procura Z pra mim\") — algo que NÃO é um " +
+      "link pra arquivar (archive_link) nem um artigo já salvo (send_summary/ask_article). " +
+      "É ASSÍNCRONA — retorna na hora com status:\"processing\". O resultado NÃO volta neste " +
+      "turno: a pesquisa abre os melhores resultados, resume no estilo Feynman e o texto fica " +
+      "RETIDO (anti-textão). O usuário recebe só uma pílula curta e pega o resumo completo " +
+      "depois, mandando o gatilho \"pode mandar\" (release_pending). NÃO espere o resultado: " +
+      "dê um ack curto (ex.: \"tô pesquisando, já te aviso 🔎\") e feche o turno com omni done.",
+    inputSchema: {
+      query: z
+        .string()
+        .describe("A dúvida/tema a pesquisar na web, em linguagem natural (ex.: 'o que é MCP', 'diferença entre REST e gRPC')."),
+      chat: z
+        .string()
+        .describe(
+          "Chat de DESTINO — copie EXATAMENTE o valor de `chat:` do contexto do " +
+            "turno (ex.: 72254369050669@lid). É pra onde a pílula (e depois o resumo) vão.",
+        ),
+    },
+  },
+  async ({ query, chat }) => {
+    const result = searchWebKnowledge(query, chat);
     return { content: [{ type: "text", text: JSON.stringify(result) }] };
   },
 );

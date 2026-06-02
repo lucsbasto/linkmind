@@ -71,11 +71,12 @@ const BRAVE_OK_BODY = {
 };
 
 describe("F1.6 search.ts — guard de existência", () => {
-  // test.failing: RED-por-design enquanto F1.6 não existe — NÃO bloqueia o gate de push.
-  // Quando search.ts for implementado, este teste "passa inesperadamente" → vira FALHA,
-  // sinalizando que os guards devem ser convertidos em testes reais.
-  test.failing("search.ts implementado (F1.6 guard)", () => {
+  // F1.6 implementada: search.ts existe e exporta braveSearch, então os guards
+  // SR-01..04 abaixo passaram a rodar como testes reais. (Era test.failing enquanto
+  // o módulo não existia — convertido como o RL-00 da F1.7, ver release.test.ts.)
+  test("SR-00 search.ts implementado e exporta braveSearch (F1.6 guard)", () => {
     expect(mod, "search.ts não implementado ainda — F1.6").not.toBeNull();
+    expect(typeof mod?.braveSearch, "braveSearch ausente — F1.6").toBe("function");
   });
 
   test("exporta braveSearch", () => {
