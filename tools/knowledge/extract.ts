@@ -7,6 +7,7 @@
  */
 import { parseHTML } from "linkedom";
 import { Readability } from "@mozilla/readability";
+import { validateHttpUrl } from "./url.ts";
 
 const TIMEOUT_MS = 10_000;
 const MAX_BYTES = 5_000_000; // 5 MB de HTML
@@ -31,15 +32,9 @@ export async function extractArticle(
   rawUrl: string,
   fetchImpl: typeof fetch = fetch,
 ): Promise<ExtractResult> {
-  let url: URL;
-  try {
-    url = new URL(rawUrl);
-    if (url.protocol !== "http:" && url.protocol !== "https:") {
-      return { ok: false, url: rawUrl, error: "invalid_url: protocolo não suportado" };
-    }
-  } catch {
-    return { ok: false, url: rawUrl, error: "invalid_url" };
-  }
+  const check = validateHttpUrl(rawUrl);
+  if (!check.ok) return { ok: false, url: rawUrl, error: check.error };
+  const url = check.url;
 
   let res: Response;
   try {

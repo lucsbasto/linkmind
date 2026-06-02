@@ -34,3 +34,16 @@ export function openDb(database = process.env.LINKMIND_PG_DB ?? "linkmind"): SQL
     tls: false,
   });
 }
+
+/**
+ * Abre uma conexão, roda `fn` e garante o `end()` no finally. Remove o
+ * boilerplate `openDb()/try/finally/end()` repetido nas queries de leitura/escrita.
+ */
+export async function withDb<T>(fn: (db: SQL) => Promise<T>): Promise<T> {
+  const db = openDb();
+  try {
+    return await fn(db);
+  } finally {
+    await db.end();
+  }
+}

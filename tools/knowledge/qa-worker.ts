@@ -17,9 +17,9 @@ import { sendWhatsApp } from "./notify.ts";
 const OMNI_TO = process.argv[4] ?? process.env.LINKMIND_OMNI_TO ?? "";
 
 async function main(): Promise<void> {
-  const pergunta = process.argv[2];
-  const assunto = process.argv[3] ?? "";
-  if (!pergunta) {
+  const question = process.argv[2];
+  const subject = process.argv[3] ?? "";
+  if (!question) {
     console.error("[qa] uso: bun run qa-worker.ts <pergunta> <assunto> <chat>");
     process.exit(2);
   }
@@ -29,12 +29,12 @@ async function main(): Promise<void> {
   }
 
   // 1. Acha o artigo (com texto puro) a consultar.
-  const found = await findArticleForQA(assunto);
+  const found = await findArticleForQA(subject);
   if (found.status === "not_found") {
     await sendWhatsApp(
       OMNI_TO,
-      assunto.trim()
-        ? `🔍 Não achei nenhum artigo salvo sobre "${assunto.trim()}" pra eu consultar.`
+      subject.trim()
+        ? `🔍 Não achei nenhum artigo salvo sobre "${subject.trim()}" pra eu consultar.`
         : `🔍 Ainda não tenho nenhum artigo com o texto completo salvo pra consultar.`,
     );
     return;
@@ -49,7 +49,7 @@ async function main(): Promise<void> {
   const article = found.article;
 
   // 2. Pergunta ao Gemini usando só o texto puro do artigo.
-  const res = await answerQuestion(pergunta, article.content);
+  const res = await answerQuestion(question, article.content);
   if (!res.ok) {
     await sendWhatsApp(OMNI_TO, `⚠️ Não consegui consultar o artigo agora (${res.error}).\n🔗 ${article.url}`);
     return;

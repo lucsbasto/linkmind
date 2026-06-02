@@ -117,14 +117,14 @@ export type AnswerResult =
  * sem shell → sem injeção); o artigo vai no stdin (evita ARG_MAX). Sem retry: se o
  * Gemini falhar, devolvemos o erro pra avisar o usuário em vez de insistir.
  */
-export async function answerQuestion(pergunta: string, articleText: string): Promise<AnswerResult> {
+export async function answerQuestion(question: string, articleText: string): Promise<AnswerResult> {
   const text = articleText.slice(0, QA_MAX_CHARS);
   if (!text.trim()) return { ok: false, error: "artigo sem texto" };
-  if (!pergunta.trim()) return { ok: false, error: "pergunta vazia" };
+  if (!question.trim()) return { ok: false, error: "pergunta vazia" };
 
   const prompt = [
     "O conteúdo completo de um artigo está no stdin.",
-    `Responda à seguinte pergunta do usuário usando SOMENTE as informações desse artigo: "${pergunta.trim()}"`,
+    `Responda à seguinte pergunta do usuário usando SOMENTE as informações desse artigo: "${question.trim()}"`,
     "Seja direto e fiel ao texto. Se a pergunta pede um trecho específico (código, pseudocódigo, citação, lista), reproduza-o tal como aparece no artigo.",
     "Se a resposta NÃO estiver no artigo, diga em uma frase que o artigo não fala sobre isso — não invente nem complete com conhecimento externo.",
     "Responda em português, conciso, em texto corrido para WhatsApp (evite markdown pesado).",
