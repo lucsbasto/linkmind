@@ -58,6 +58,7 @@ sentido só num futuro deploy VPS multi-tenant, fora do v1).
    - **pipeline real headless:** rodar `tools/knowledge/worker.ts` contra uma URL fixture → asserir que uma linha nova aparece em `knowledge_node` com `card`/`content` preenchidos. _(Não depende de mandar mensagem real no WhatsApp — testa o miolo determinístico; o envio E2E real fica como passo manual documentado.)_
 5. **Limpeza de reprodutibilidade do repo:** mover os `tmux-*.log` da raiz pro `.gitignore` (ou apagar), garantir que `.gitignore` cobre `node_modules/`, `worker.log`, segredos (`.omni/config.json`, `~/.gemini`, keys). Confirmar que nenhum segredo está versionado.
 6. **`.env.example`** documentando as variáveis configuráveis (socket do pgserve, instância/chat default do callback, `LINKMIND_REMINDER_DIAS`/`_MAX`, `MAX_CHARS`) — hoje espalhadas como defaults em código.
+7. **`docs/ADR/` — Architecture Decision Records** (diferencial "Documentação de decisões arquiteturais"). Consolidar num formato versionado e navegável as decisões hoje soltas na seção `Decisions` do `STATE.md` + nos vários `discovery.md`. Um ADR curto por decisão de peso, no mínimo: (a) **Docker descartado** → setup.sh+Makefile (ver Tensão central desta spec); (b) **engine = `claude` CLI nativo** spawnado pelo bridge, NÃO Agent SDK/`sdk.mcpServers` (ver F0.2 discovery — o achado que reverteu o spike); (c) **tools = MCP stdio efêmeras** registradas via `.mcp.json`+`settings.local.json`, não serviços long-running; (d) **resumo = Gemini CLI**, não o modelo do agente; (e) **persistência = pgserve socket-trust**, não Postgres em container; (f) **WSL2/Ubuntu** como host runtime. Cada ADR: contexto → decisão → consequências/trade-offs → status. `README` linka o índice de ADRs. _(O conteúdo já existe disperso — esta tarefa é principalmente curadoria + formato, não pesquisa nova.)_
 
 **Out (outras features / depois):**
 
@@ -77,6 +78,7 @@ sentido só num futuro deploy VPS multi-tenant, fora do v1).
 - [ ] `.gitignore` cobre logs/tmux/`node_modules`/segredos; `tmux-*.log` saem da raiz; `git status` limpo num clone fresco após setup.
 - [ ] `.env.example` lista todas as envs configuráveis com valores de exemplo e comentário.
 - [ ] **Verificação por terceiro (proxy):** rodar o caminho completo numa árvore limpa (ou descrever o teste de mesa) e registrar o resultado no `STATE.md`.
+- [ ] **`docs/ADR/` com ≥6 ADRs** (Docker descartado, engine claude-CLI vs SDK, MCP stdio efêmero, Gemini p/ resumo, pgserve socket-trust, WSL2 host) no formato contexto→decisão→consequências→status; índice linkado pelo `README`.
 
 ## Design
 
