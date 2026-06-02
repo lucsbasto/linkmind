@@ -36,11 +36,13 @@
 
 ### Features
 
-**F1.1 — Detecção dinâmica de intenção** - PLANNED
+**F1.1 — Detecção dinâmica de intenção** - 📝 SPEC (2026-06-02)
 
 - Classificador (LLM-based) que decide: LINK_PARA_ARQUIVAR | DUVIDA_PARA_PESQUISAR | OUTRO
 - Roteamento da mensagem para o pipeline correto
 - Critério: precisão ≥95% em conjunto de 50 mensagens-fixture
+- ⚠️ Decisão na spec: formalizar+medir o roteamento que JÁ existe no AGENTS.md (vs. classificador pré-turno separado). 7 intenções + harness de eval.
+- Spec: `.specs/features/F1.1-deteccao-intencao/spec.md`
 
 **F1.2 — Tool `fetch_web_content` (scraper universal)** - ✅ DONE (2026-06-01)
 
@@ -48,11 +50,13 @@
 - Remoção de ads, menus, navegação; tratamento de erros (404/PDF/URL inválida) com `ok:false`
 - Registrada como server `web` no `.mcp.json` + auto-aprovada; E2E pelo WhatsApp validado
 
-**F1.3 — Tool `get_youtube_transcript`** - PLANNED
+**F1.3 — Tool `get_youtube_transcript`** - 📝 SPEC (2026-06-02)
 
 - Extração de legendas (auto-geradas ou manuais)
 - Detecção de idioma e fallback
 - Tratamento de vídeos sem legenda
+- ⚠️ Spike de lib (P0): `youtube-transcript` vs `youtubei.js` sob Bun/Linux. Encaixa no pipeline existente via roteamento por host no worker (sem nova tool exposta).
+- Spec: `.specs/features/F1.3-youtube-transcript/spec.md`
 
 **F1.4 — Resumo Feynman (Gemini CLI) + persistência (escrita)** - 📝 SPEC (2026-06-01)
 
@@ -68,29 +72,43 @@
 - Escrita transacional com tipo (LINK | YOUTUBE | RESEARCH)
 - Índices para recuperação por usuário + data
 
-**F1.6 — Tool `search_web_knowledge` (Brave Search API)** - PLANNED
+**F1.6 — Tool `search_web_knowledge` (Brave Search API)** - 📝 SPEC (2026-06-02)
 
 - Wrapper sobre Brave Search API com chave em env
 - Consolidação de top resultados em resumo Feynman
 - Tratamento de rate limit + erros HTTP
+- Reusa o worker assíncrono; produz pendente PENDING_RELEASE (par natural da F1.7). Specar/entregar junto com F1.7.
+- Spec: `.specs/features/F1.6-search-web-knowledge/spec.md`
 
-**F1.7 — Gatilho async anti-textão** - PLANNED
+**F1.7 — Gatilho async anti-textão** - 📝 SPEC (2026-06-02)
 
 - Resumo de pesquisa salvo em Postgres com status `PENDING_RELEASE`
 - Notificação curta no WhatsApp: "Já pesquisei, é só pedir"
 - Loop de release com `FOR UPDATE SKIP LOCKED` quando usuário envia gatilho ("pode mandar", "manda", etc.)
+- Único item do roadmap que exige concorrência transacional + teste de resiliência (derrubada sob carga).
+- Spec: `.specs/features/F1.7-gatilho-async-anti-textao/spec.md`
 
-**F1.8 — Hardening do system prompt** - PLANNED
+**F1.8 — Hardening do system prompt** - 📝 SPEC (2026-06-02)
 
 - Prompt blindado contra injection
 - Recusa estruturada para pedidos fora do escopo PKM
 - Bateria de testes de injection (≥20 ataques conhecidos)
+- ⚠️ Modelo de ameaça na spec inclui injeção INDIRETA (conteúdo de página capturada vira instrução) — o vetor mais perigoso dado tools auto-aprovadas.
+- Spec: `.specs/features/F1.8-hardening-prompt/spec.md`
 
-**F1.9 — Docker Compose reproduzível + docs de setup** - PLANNED
+**F1.9 — Setup reproduzível + docs + `make verify`** - 📝 SPEC (2026-06-02)
 
-- `docker-compose.yml` final com Postgres + tools service
-- README com passo a passo de instalação Omni/Genie
-- Script `make verify` que roda smoke test ponta a ponta
+- ⚠️ **Revisão de meio:** Docker Compose → **`setup.sh` + Makefile + smoke test** (a stack é pacotes globais/PM2 + CLIs nativas + tools MCP efêmeras; Docker vira Deferred). Ver "Tensão central" na spec.
+- README raiz (caminho clone→1º card) + `.env.example` + higiene do repo (tmux/logs/segredos)
+- `make verify` = smoke test ponta-a-ponta (serviços + DB + CLIs + **pipeline determinístico** worker→`knowledge_node`)
+- Spec: `.specs/features/F1.9-setup-reproduzivel/spec.md`
+
+**F1.10 — Testes automatizados (suíte `bun test`)** - 📝 SPEC (2026-06-02)
+
+- Feature transversal de qualidade — hoje a cobertura é **ZERO** (critério de banca direto).
+- Unit puros (extractJson/CardSchema/formatCard/parse de videoId) + unit com mock de externos (fetch/Gemini/omni) + integração DB (recall/reminder/release).
+- Mocka o caro (Gemini/rede/WhatsApp); testa o código ao redor, não a IA. Plugado no `make verify` (parte offline).
+- Spec: `.specs/features/F1.10-testes-automatizados/spec.md`
 
 ---
 

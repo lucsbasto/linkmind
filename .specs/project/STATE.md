@@ -37,6 +37,8 @@
 
 ## Decisions
 
+- **2026-06-02 — Direção confirmada pelo usuário: seguir com as 7 specs escritas nesta sessão.** Todas em `.specs/features/`, status `📝 SPEC`, com `## Test Cases` IDed, ainda NÃO implementadas: **F1.1** detecção de intenção (`IC-*`), **F1.3** youtube_transcript (`YT-*`), **F1.6** search_web_knowledge/Brave (`SR-*`), **F1.7** anti-textão async / `SKIP LOCKED` (`RL-*`), **F1.8** hardening anti-injection (`INJ-*`), **F1.9** setup reproduzível / `make verify` (`VF-*`), **F1.10** testes automatizados (mapa de trilhas). **F1.5** fica absorvida (escrita→F1.4; schema completo→incremental em F1.6/F1.7); **F2.1/F2.2** são M2 (fora do v1). **Próximo passo sugerido:** F1.10/P0 (unit puros via `bun test`). Ver memória [[linkmind-specs-m1-restantes]].
+
 - **2026-05-31:** Removidos do PRD a ingestão de áudio e o "Agente Consultor Assistente" (Caso de Uso B original). Removidas as ferramentas `transcribe_audio` e `manage_calendar_events`, e o pilar "Mapeamento de APIs Externas (Calendário)". Slogan ajustado para remover "Consultivo".
 - **2026-05-31:** Escopo v1 = Núcleo de captura + pesquisa (links/YouTube + Feynman + pesquisa sob demanda async). Zettelkasten automático e revisão espaçada saem do v1 e entram em M2.
 - **2026-05-31:** Provedor de busca web = Brave Search API (free tier 2k queries/mês, decisão revisitável se rate limit pesar).
