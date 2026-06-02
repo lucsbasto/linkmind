@@ -21,7 +21,7 @@ import { pgSocketPath } from "../db.ts";
 export const TEST_DB = "linkmind_test";
 const MAINTENANCE_DB = "postgres";
 const MIGRATIONS_DIR = new URL("../migrations/", import.meta.url).pathname;
-const MIGRATIONS = ["001_knowledge_node.sql", "002_reminders.sql", "003_content.sql"];
+const MIGRATIONS = ["001_knowledge_node.sql", "002_reminders.sql", "003_content.sql", "004_release.sql"];
 
 let handle: SQL | null = null;
 
@@ -82,6 +82,10 @@ async function runMigrations(db: SQL): Promise<void> {
 export async function setupTestDb(): Promise<SQL> {
   await assertPgUp();
   await createTestDbIfAbsent();
+  // A trilha de integração NUNCA manda WhatsApp: silencia `notify.sendWhatsApp`
+  // (retorna ok sem spawnar `omni`) — protege enqueue/release/reminder de efeito
+  // colateral real ao serem exercidos contra o DB de teste.
+  process.env.LINKMIND_NOTIFY_DISABLED = "1";
   // A partir daqui, recall/reminder (que leem LINKMIND_PG_DB no openDb) miram o teste.
   process.env.LINKMIND_PG_DB = TEST_DB;
   handle = new SQL({ path: pgSocketPath(), username: user(), database: TEST_DB, tls: false });

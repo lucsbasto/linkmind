@@ -4,7 +4,7 @@
  * Busca aproximada (ILIKE) em `topico` e `title`, mais recentes primeiro. O `card`
  * volta como string do `jsonb` (quirk do Bun.sql) → JSON.parse + valida com zod.
  */
-import { openDb } from "./db.ts";
+import { withDb } from "./db.ts";
 import { CardSchema, type FeynmanCard } from "./summarize.ts";
 
 export type Summary = {
@@ -17,16 +17,16 @@ export type Summary = {
 };
 
 /** Resumos cujo tópico OU título casa (aproximação) com `assunto`. */
-export async function findSummaries(assunto: string, limit = 5): Promise<Summary[]> {
-  const term = assunto.trim();
+export async function findSummaries(subject: string, limit = 5): Promise<Summary[]> {
+  const term = subject.trim();
   if (!term) return [];
   const like = `%${term}%`;
-  const db = openDb();
-  try {
+  return withDb(async (db) => {
     const rows = await db`
       SELECT id, topico, title, url, card, created_at
       FROM knowledge_node
-      WHERE topico ILIKE ${like} OR title ILIKE ${like}
+      WHERE status = 'RELEASED'                       -- F1.7: pendente não vaza na recuperação
+        AND (topico ILIKE ${like} OR title ILIKE ${like})
       ORDER BY created_at DESC
       LIMIT ${limit}`;
     return rows.map((r: any) => ({
@@ -38,9 +38,7 @@ export async function findSummaries(assunto: string, limit = 5): Promise<Summary
       card: CardSchema.parse(typeof r.card === "string" ? JSON.parse(r.card) : r.card),
       created_at: String(r.created_at),
     }));
-  } finally {
-    await db.end();
-  }
+  });
 }
 
 export type ArticleContent = {
@@ -68,10 +66,9 @@ export type ArticleLookup =
  * `content`. Só serve nodes com `content` não-nulo; um match sem content (artigo
  * salvo antes da feature de conteúdo) volta como `no_content`.
  */
-export async function findArticleForQA(assunto: string): Promise<ArticleLookup> {
-  const term = assunto.trim();
-  const db = openDb();
-  try {
+export async function findArticleForQA(subject: string): Promise<ArticleLookup> {
+  const term = subject.trim();
+  return withDb(async (db) => {
     if (!term) {
       // Sem assunto: o mais recente que tenha texto puro salvo.
       const rows = await db`
@@ -96,9 +93,7 @@ export async function findArticleForQA(assunto: string): Promise<ArticleLookup> 
     const r: any = rows[0];
     if (r.content == null) return { status: "no_content", title: r.title, url: r.url };
     return { status: "ok", article: { id: String(r.id), title: r.title, url: r.url, topico: r.topico, content: String(r.content) } };
-  } finally {
-    await db.end();
-  }
+  });
 }
 
 /**
@@ -106,22 +101,17 @@ export async function findArticleForQA(assunto: string): Promise<ArticleLookup> 
  * ele não entra mais na varredura do reminder.ts (que filtra last_recalled_at IS NULL).
  */
 export async function markRecalled(id: string): Promise<void> {
-  const db = openDb();
-  try {
-    await db`UPDATE knowledge_node SET last_recalled_at = now() WHERE id = ${id}`;
-  } finally {
-    await db.end();
-  }
+  await withDb((db) => db`UPDATE knowledge_node SET last_recalled_at = now() WHERE id = ${id}`);
 }
 
 // --- harness standalone: `bun run recall.ts <assunto>` ---
 if (import.meta.main) {
-  const assunto = process.argv.slice(2).join(" ");
-  if (!assunto) {
+  const subject = process.argv.slice(2).join(" ");
+  if (!subject) {
     console.error("uso: bun run recall.ts <assunto>");
     process.exit(2);
   }
-  const found = await findSummaries(assunto);
-  console.error(`[recall] ${found.length} resultado(s) para "${assunto}"`);
+  const found = await findSummaries(subject);
+  console.error(`[recall] ${found.length} resultado(s) para "${subject}"`);
   console.log(JSON.stringify(found, null, 2));
 }

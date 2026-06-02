@@ -15,14 +15,14 @@
  *
  * Uso: `bun run reminder.ts`  (ou agendado: `genie schedule create ...`).
  */
-import { openDb } from "./db.ts";
+import { withDb } from "./db.ts";
 import { sendWhatsApp } from "./notify.ts";
 
 /** Lê os limites do env em tempo de chamada (default 3) — permite override por teste. */
-function limites(): { DIAS: number; MAX: number } {
+function getLimits(): { minDays: number; maxReminders: number } {
   return {
-    DIAS: Number(process.env.LINKMIND_REMINDER_DIAS ?? "3"),
-    MAX: Number(process.env.LINKMIND_REMINDER_MAX ?? "3"),
+    minDays: Number(process.env.LINKMIND_REMINDER_DIAS ?? "3"),
+    maxReminders: Number(process.env.LINKMIND_REMINDER_MAX ?? "3"),
   };
 }
 
@@ -37,20 +37,20 @@ export type Pendente = {
 
 /** 1 node por chat (o mais antigo elegível): não lido, parado há ≥DIAS, abaixo do teto. */
 export async function buscarPendentes(): Promise<Pendente[]> {
-  const { DIAS, MAX } = limites();
-  const db = openDb();
-  try {
+  const { minDays, maxReminders } = getLimits();
+  return withDb(async (db) => {
     const rows = await db`
       SELECT DISTINCT ON (chat)
         id, chat, url, title, topico,
         EXTRACT(DAY FROM now() - created_at)::int AS idade_dias
       FROM knowledge_node
       WHERE chat IS NOT NULL
+        AND status = 'RELEASED'                  -- F1.7: pendente de pesquisa não vira nudge
         AND last_recalled_at IS NULL
-        AND reminder_count < ${MAX}
-        AND created_at < now() - make_interval(days => ${DIAS})
+        AND reminder_count < ${maxReminders}
+        AND created_at < now() - make_interval(days => ${minDays})
         AND (last_reminder_at IS NULL
-             OR last_reminder_at < now() - make_interval(days => ${DIAS}))
+             OR last_reminder_at < now() - make_interval(days => ${minDays}))
       ORDER BY chat, created_at ASC`;
     return rows.map((r: any) => ({
       id: String(r.id),
@@ -60,36 +60,29 @@ export async function buscarPendentes(): Promise<Pendente[]> {
       topico: String(r.topico),
       idade_dias: Number(r.idade_dias),
     }));
-  } finally {
-    await db.end();
-  }
+  });
 }
 
 export function formatNudge(p: Pendente): string {
-  const nome = p.title ?? p.topico;
+  const name = p.title ?? p.topico;
   return [
-    `📚 Você salvou *${nome}* há ${p.idade_dias} dias e ainda não leu.`,
+    `📚 Você salvou *${name}* há ${p.idade_dias} dias e ainda não leu.`,
     `🔗 ${p.url}`,
     `Quer o resumo? manda "me manda o resumo de ${p.topico}"`,
   ].join("\n");
 }
 
 export async function marcarLembrado(id: string): Promise<void> {
-  const db = openDb();
-  try {
-    await db`
-      UPDATE knowledge_node
-      SET reminder_count = reminder_count + 1, last_reminder_at = now()
-      WHERE id = ${id}`;
-  } finally {
-    await db.end();
-  }
+  await withDb((db) => db`
+    UPDATE knowledge_node
+    SET reminder_count = reminder_count + 1, last_reminder_at = now()
+    WHERE id = ${id}`);
 }
 
 async function main(): Promise<void> {
-  const { DIAS, MAX } = limites();
+  const { minDays, maxReminders } = getLimits();
   const pendentes = await buscarPendentes();
-  console.error(`[reminder] ${pendentes.length} chat(s) com artigo parado (DIAS=${DIAS}, MAX=${MAX})`);
+  console.error(`[reminder] ${pendentes.length} chat(s) com artigo parado (DIAS=${minDays}, MAX=${maxReminders})`);
   for (const p of pendentes) {
     const ok = await sendWhatsApp(p.chat, formatNudge(p));
     // Só conta o lembrete se o envio deu certo — senão tenta de novo amanhã.

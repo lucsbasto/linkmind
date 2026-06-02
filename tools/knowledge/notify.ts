@@ -19,6 +19,11 @@ const OMNI_BIN =
 
 /** Manda um texto pro chat `to` (JID) via `omni send`. Retorna se deu certo. */
 export async function sendWhatsApp(to: string, text: string): Promise<boolean> {
+  // Kill-switch para testes/CI: não spawna `omni` (sem efeito colateral real de
+  // WhatsApp). A trilha de integração liga isso no setupTestDb.
+  if (process.env.LINKMIND_NOTIFY_DISABLED) {
+    return true;
+  }
   const proc = Bun.spawn(
     [OMNI_BIN, "send", "--instance", OMNI_INSTANCE, "--to", to, "--text", text],
     {
@@ -45,14 +50,14 @@ export async function sendWhatsApp(to: string, text: string): Promise<boolean> {
 
 /** Card completo (resumo Feynman) — usado no reenvio sob demanda. */
 export function formatCard(card: FeynmanCard, title: string | undefined, url: string): string {
-  const pilares = card.pilares.map((p) => `• ${p}`).join("\n");
+  const pillars = card.pilares.map((p) => `• ${p}`).join("\n");
   return [
     `🧠 *${title ?? card.topico}*`,
     ``,
     `💡 ${card.ideia_central}`,
     ``,
     `📌 *Pilares:*`,
-    pilares,
+    pillars,
     ``,
     `🔧 *Aplicação:* ${card.aplicacao}`,
     ``,

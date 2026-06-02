@@ -36,11 +36,11 @@ afterAll(async () => {
   await teardownTestDb();
 });
 
-describe("F1.7 release contract (GUARD — RED até release.ts existir)", () => {
-  // test.failing: RED-por-design enquanto F1.7 não existe — NÃO bloqueia o gate de push.
-  // Quando release.ts for implementado, "passa inesperadamente" → vira FALHA, sinalizando
-  // que os guards de concorrência (RL-01..) devem virar testes reais.
-  test.failing("RL-00 release.ts implementado e exporta releasePending/enqueuePending (F1.7 guard)", () => {
+describe("F1.7 release contract", () => {
+  // F1.7 implementada: release.ts exporta o contrato e os guards de concorrência
+  // (RL-01..) abaixo passaram a rodar como testes reais. (Era test.failing enquanto
+  // o módulo não existia.)
+  test("RL-00 release.ts implementado e exporta releasePending/enqueuePending (F1.7 guard)", () => {
     expect(mod, "release.ts não implementado — F1.7").not.toBeNull();
     expect(typeof mod?.releasePending, "releasePending ausente — F1.7").toBe("function");
     expect(typeof mod?.enqueuePending, "enqueuePending ausente — F1.7").toBe("function");

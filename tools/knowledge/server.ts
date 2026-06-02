@@ -9,7 +9,9 @@ import { openSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
 import { findSummaries, markRecalled } from "./recall.ts";
+import { releasePending } from "./release.ts";
 import { sendWhatsApp, formatCard } from "./notify.ts";
+import { validateHttpUrl } from "./url.ts";
 
 const WORKER = join(import.meta.dir, "worker.ts");
 const QA_WORKER = join(import.meta.dir, "qa-worker.ts");
@@ -29,14 +31,8 @@ type ArchiveResult = { ok: boolean; status?: "processing"; error?: string };
 // pra um destino fixo. O agente passa esse valor a partir do contexto do turno.
 function archiveLink(rawUrl: string, chat: string): ArchiveResult {
   // Valida antes de disparar (não gasta worker em URL inválida).
-  try {
-    const url = new URL(rawUrl);
-    if (url.protocol !== "http:" && url.protocol !== "https:") {
-      return { ok: false, error: "invalid_url: protocolo não suportado" };
-    }
-  } catch {
-    return { ok: false, error: "invalid_url" };
-  }
+  const check = validateHttpUrl(rawUrl);
+  if (!check.ok) return { ok: false, error: check.error };
   if (!chat || !chat.trim()) {
     return { ok: false, error: "missing_chat: destino do card não informado" };
   }
@@ -107,11 +103,32 @@ async function sendSummary(assunto: string, chat: string): Promise<RecallResult>
 
   // Se houver mais de um match, lista os outros pra o usuário escolher.
   if (matches.length > 1) {
-    const outros = matches.slice(1).map((m) => `• ${m.title ?? m.topico}`).join("\n");
-    await sendWhatsApp(to, `Tenho outros ${matches.length - 1} sobre isso:\n${outros}`);
+    const others = matches.slice(1).map((m) => `• ${m.title ?? m.topico}`).join("\n");
+    await sendWhatsApp(to, `Tenho outros ${matches.length - 1} sobre isso:\n${others}`);
   }
 
   return { ok: true, found: matches.length, topico: top.topico };
+}
+
+// Release SÍNCRONO de conteúdo retido (F1.7). O usuário mandou o gatilho ("pode
+// mandar", "manda") → libera o pendente mais antigo do chat (claim atômico SKIP
+// LOCKED dentro de releasePending) e a própria função faz o `omni send`. Rápido
+// (sem Gemini/fetch). `found:0` = não tinha nada pendente.
+type ReleaseToolResult = { ok: boolean; found?: number; remaining?: number; error?: string };
+
+async function releaseTool(chat: string): Promise<ReleaseToolResult> {
+  const to = chat?.trim();
+  if (!to) return { ok: false, error: "missing_chat" };
+  try {
+    const r = await releasePending(to);
+    if (!r.released) {
+      await sendWhatsApp(to, "🤔 não tem nada pendente pra te mandar.");
+      return { ok: true, found: 0, remaining: 0 };
+    }
+    return { ok: true, found: 1, remaining: r.remaining };
+  } catch (e) {
+    return { ok: false, error: `db: ${(e as Error).message}` };
+  }
 }
 
 const server = new McpServer({ name: "knowledge", version: "0.1.0" });
@@ -201,6 +218,32 @@ server.registerTool(
   },
   async ({ assunto, chat }) => {
     const result = await sendSummary(assunto, chat);
+    return { content: [{ type: "text", text: JSON.stringify(result) }] };
+  },
+);
+
+server.registerTool(
+  "release_pending",
+  {
+    title: "Release Pending",
+    description:
+      "Libera o conteúdo denso que ficou RETIDO (ex.: resultado de pesquisa) quando " +
+      "o usuário manda o GATILHO sem assunto: \"pode mandar\", \"manda\", \"manda aí\", " +
+      "\"manda o texto\", \"quero ver\". A tool entrega o pendente mais antigo direto no " +
+      "chat — você só dá um ack curto. CUIDADO de desempate: \"me manda o resumo de X\" " +
+      "(COM assunto) é send_summary, NÃO isto. Se vier found:0, diga em uma linha que " +
+      "não tem nada pendente. Se remaining>0, avise que ainda há mais (é só pedir de novo).",
+    inputSchema: {
+      chat: z
+        .string()
+        .describe(
+          "Chat de DESTINO — copie EXATAMENTE o valor de `chat:` do contexto do " +
+            "turno (ex.: 72254369050669@lid). É pra onde o conteúdo retido será enviado.",
+        ),
+    },
+  },
+  async ({ chat }) => {
+    const result = await releaseTool(chat);
     return { content: [{ type: "text", text: JSON.stringify(result) }] };
   },
 );
